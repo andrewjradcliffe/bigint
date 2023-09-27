@@ -3,7 +3,7 @@ pub struct BigInt {
     words: Vec<u8>,
 }
 impl BigInt {
-    pub fn from(rtol_words: &[u8]) -> Self {
+    pub fn from_rtol(rtol_words: &[u8]) -> Self {
         Self {
             words: rtol_words.iter().cloned().rev().collect(),
         }
@@ -73,6 +73,15 @@ pub fn algorithm_s(u: &BigInt, v: &BigInt) -> BigInt {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn addition_works() {
+        let u = BigInt { words: vec![0xff] };
+        let v = BigInt { words: vec![0xff] };
+        let w = algorithm_a(&u, &v);
+        assert_eq!(w.words[0], 0xfe);
+        assert_eq!(w.words[1], 0x01);
+    }
 
     #[test]
     fn subtraction_works() {
