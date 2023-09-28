@@ -155,9 +155,11 @@ pub fn algorithm_eq(u: &BigInt, v: &BigInt) -> bool {
 pub fn algorithm_le(u: &BigInt, v: &BigInt) -> bool {
     !algorithm_gt(u, v)
 }
-
 pub fn algorithm_ge(u: &BigInt, v: &BigInt) -> bool {
     !algorithm_lt(u, v)
+}
+pub fn algorithm_ne(u: &BigInt, v: &BigInt) -> bool {
+    !algorithm_eq(u, v)
 }
 
 #[cfg(test)]
