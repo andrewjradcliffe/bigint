@@ -42,6 +42,50 @@ pub fn algorithm_a(u: &BigInt, v: &BigInt) -> BigInt {
     BigInt { words: w }
 }
 
+pub fn algorithm_s(u: &BigInt, v: &BigInt) -> BigInt {
+    let n = u.words.len();
+    assert_eq!(n, v.words.len());
+    assert!(algorithm_ge(u, v));
+
+    let mut w: Vec<u8> = Vec::with_capacity(n);
+    let mut j: usize = 0;
+    let mut k: u8 = 1;
+    while j < n {
+        let u_j = u.words[j];
+        let w_j = u_j
+            .wrapping_sub(v.words[j])
+            .wrapping_add(k)
+            .wrapping_add(u8::MAX);
+        k = (!(w_j > u_j)) as u8;
+        w.push(w_j);
+        j += 1;
+    }
+    BigInt { words: w }
+}
+
+pub fn algorithm_m(u: &BigInt, v: &BigInt) -> BigInt {
+    let m = u.words.len();
+    let n = v.words.len();
+    let mut w: Vec<u8> = Vec::with_capacity(m + n - 1);
+    w.resize(m + n, 0);
+    let mut j: usize = 0;
+    while j < n {
+        let mut i: usize = 0;
+        let mut k: u16 = 0;
+        let v_j = v.words[j] as u16;
+        while i < m {
+            let t = (u.words[i] as u16) * v_j + (w[i + j] as u16) + k;
+            let w_ij = t & 0x00ff; // t & (( 1u16 << 8) - 1);
+            w[i + j] = w_ij as u8;
+            k = t >> 8;
+            i = i + 1;
+        }
+        w[j + m] = k as u8;
+        j = j + 1;
+    }
+    BigInt { words: w }
+}
+
 fn lt_same_size(u: &[u8], v: &[u8]) -> bool {
     let m = u.len();
     assert_eq!(m, v.len());
@@ -90,50 +134,6 @@ pub fn algorithm_lt(u: &BigInt, v: &BigInt) -> bool {
 
 pub fn algorithm_ge(u: &BigInt, v: &BigInt) -> bool {
     !algorithm_lt(u, v)
-}
-
-pub fn algorithm_s(u: &BigInt, v: &BigInt) -> BigInt {
-    let n = u.words.len();
-    assert_eq!(n, v.words.len());
-    assert!(algorithm_ge(u, v));
-
-    let mut w: Vec<u8> = Vec::with_capacity(n);
-    let mut j: usize = 0;
-    let mut k: u8 = 1;
-    while j < n {
-        let u_j = u.words[j];
-        let w_j = u_j
-            .wrapping_sub(v.words[j])
-            .wrapping_add(k)
-            .wrapping_add(u8::MAX);
-        k = (!(w_j > u_j)) as u8;
-        w.push(w_j);
-        j += 1;
-    }
-    BigInt { words: w }
-}
-
-pub fn algorithm_m(u: &BigInt, v: &BigInt) -> BigInt {
-    let m = u.words.len();
-    let n = v.words.len();
-    let mut w: Vec<u8> = Vec::with_capacity(m + n - 1);
-    w.resize(m + n, 0);
-    let mut j: usize = 0;
-    while j < n {
-        let mut i: usize = 0;
-        let mut k: u16 = 0;
-        let v_j = v.words[j] as u16;
-        while i < m {
-            let t = (u.words[i] as u16) * v_j + (w[i + j] as u16) + k;
-            let w_ij = t & 0x00ff; // t & (( 1u16 << 8) - 1);
-            w[i + j] = w_ij as u8;
-            k = t >> 8;
-            i = i + 1;
-        }
-        w[j + m] = k as u8;
-        j = j + 1;
-    }
-    BigInt { words: w }
 }
 
 #[cfg(test)]
