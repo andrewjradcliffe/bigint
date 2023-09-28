@@ -21,7 +21,6 @@ impl BigInt {
     // }
 }
 
-// use std::ops::Add;
 pub fn algorithm_a(u: &BigInt, v: &BigInt) -> BigInt {
     let n = u.words.len();
     assert_eq!(n, v.words.len());
@@ -67,46 +66,6 @@ fn lt_same_size(u: &[u8], v: &[u8]) -> bool {
     state
 }
 pub fn algorithm_lt(u: &BigInt, v: &BigInt) -> bool {
-    // // Version 1: Assuming that leading zeros are eliminated
-    // let m = u.words.len();
-    // let n = v.words.len();
-    // if m < n {
-    //     true
-    // } else if m == n {
-    //     // Option 1
-    //     let mut state = false;
-    //     let mut i = n;
-    //     while i > 0 {
-    //         i -= 1;
-    //         if u.words[i] == v.words[i] {
-    //             continue;
-    //         } else if u.words[i] > v.words[i] {
-    //             break;
-    //         } else {
-    //             state = true;
-    //             break;
-    //         }
-    //     }
-    //     state
-    //     // Option 2
-    //     // let mut i = n;
-    //     // while i > 0 {
-    //     //     i -= 1;
-    //     //     if u.words[i] == v.words[i] {
-    //     //         continue;
-    //     //     } else if u.words[i] > v.words[i] {
-    //     //         return false;
-    //     //     } else {
-    //     //         return true;
-    //     //     }
-    //     // }
-    //     // false
-    // } else {
-    //     // m > n, thus, provided that leading zeros are eliminated,
-    //     // this will necessarily be true
-    //     false
-    // }
-    // Version 2: leading zeros not eliminated
     let m = u.words.len();
     let n = v.words.len();
     if m < n {
@@ -117,35 +76,8 @@ pub fn algorithm_lt(u: &BigInt, v: &BigInt) -> bool {
                 return true;
             }
         }
-        // let mut state = false;
-        // while i > 0 {
-        //     i -= 1;
-        //     if u.words[i] == v.words[i] {
-        //         continue;
-        //     } else if u.words[i] > v.words[i] {
-        //         break;
-        //     } else {
-        //         state = true;
-        //         break;
-        //     }
-        // }
-        // state
         lt_same_size(&u.words[0..i], &v.words[0..i])
     } else if m == n {
-        // let mut i: usize = n;
-        // let mut state = false;
-        // while i > 0 {
-        //     i -= 1;
-        //     if u.words[i] == v.words[i] {
-        //         continue;
-        //     } else if u.words[i] > v.words[i] {
-        //         break;
-        //     } else {
-        //         state = true;
-        //         break;
-        //     }
-        // }
-        // state
         lt_same_size(&u.words[..], &v.words[..])
     } else {
         // m > n
@@ -156,19 +88,6 @@ pub fn algorithm_lt(u: &BigInt, v: &BigInt) -> bool {
                 return false;
             }
         }
-        // let mut state = false;
-        // while i > 0 {
-        //     i -= 1;
-        //     if u.words[i] == v.words[i] {
-        //         continue;
-        //     } else if u.words[i] > v.words[i] {
-        //         break;
-        //     } else {
-        //         state = true;
-        //         break;
-        //     }
-        // }
-        // state
         lt_same_size(&u.words[0..i], &v.words[0..i])
     }
 }
@@ -261,5 +180,18 @@ mod tests {
         let w = algorithm_m(&u, &v);
         assert_eq!(w.words[0], 0xe1);
         assert_eq!(w.words[1], 0x00);
+    }
+
+    #[test]
+    fn lt_works() {
+        let u = BigInt::from_rtol(&[0x01, 0x00]);
+        let v = BigInt::from_rtol(&[0x02, 0x01]);
+        assert!(algorithm_lt(&u, &v));
+
+        let w = BigInt::from_rtol(&[0x00, 0x00, 0x02, 0x01]);
+        assert!(algorithm_lt(&u, &w));
+
+        let x = BigInt::from_rtol(&[0x00, 0x01, 0x02, 0x01]);
+        assert!(!algorithm_lt(&x, &v));
     }
 }
