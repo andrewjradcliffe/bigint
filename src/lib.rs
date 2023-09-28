@@ -70,6 +70,29 @@ pub fn algorithm_s(u: &BigInt, v: &BigInt) -> BigInt {
     BigInt { words: w }
 }
 
+pub fn algorithm_m(u: &BigInt, v: &BigInt) -> BigInt {
+    let m = u.words.len();
+    let n = v.words.len();
+    let mut w: Vec<u8> = Vec::with_capacity(m + n - 1);
+    w.resize(m + n, 0);
+    let mut j: usize = 0;
+    while j < n {
+        let mut i: usize = 0;
+        let mut k: u16 = 0;
+        let v_j = v.words[j] as u16;
+        while i < m {
+            let t = (u.words[i] as u16) * v_j + (w[i + j] as u16) + k;
+            let w_ij = t & 0x00ff; // t & (( 1u16 << 8) - 1);
+            w[i + j] = w_ij as u8;
+            k = t >> 8;
+            i = i + 1;
+        }
+        w[j + m] = k as u8;
+        j = j + 1;
+    }
+    BigInt { words: w }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -98,6 +121,21 @@ mod tests {
         let w = algorithm_s(&u, &v);
         // let rhs = BigInt {words: vec![0x00, 0xff]};
         assert_eq!(w.words[0], 0xff);
+        assert_eq!(w.words[1], 0x00);
+    }
+
+    #[test]
+    fn multiplication_works() {
+        let u = BigInt { words: vec![0xff] };
+        let v = BigInt { words: vec![0xff] };
+        let w = algorithm_m(&u, &v);
+        assert_eq!(w.words[0], 0x01);
+        assert_eq!(w.words[1], 0xfe);
+
+        let u = BigInt { words: vec![0x0f] };
+        let v = BigInt { words: vec![0x0f] };
+        let w = algorithm_m(&u, &v);
+        assert_eq!(w.words[0], 0xe1);
         assert_eq!(w.words[1], 0x00);
     }
 }
