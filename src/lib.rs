@@ -42,11 +42,6 @@ pub fn algorithm_a(u: &BigInt, v: &BigInt) -> BigInt {
     BigInt { words: w }
 }
 
-pub fn algorithm_ge(u: &BigInt, v: &BigInt) -> bool {
-    let n = u.words.len();
-    assert_eq!(n, v.words.len());
-    u.words[n - 1] >= v.words[n - 1]
-}
 fn lt_same_size(u: &[u8], v: &[u8]) -> bool {
     let m = u.len();
     assert_eq!(m, v.len());
@@ -65,6 +60,7 @@ fn lt_same_size(u: &[u8], v: &[u8]) -> bool {
     }
     state
 }
+
 pub fn algorithm_lt(u: &BigInt, v: &BigInt) -> bool {
     let m = u.words.len();
     let n = v.words.len();
@@ -90,6 +86,10 @@ pub fn algorithm_lt(u: &BigInt, v: &BigInt) -> bool {
         }
         lt_same_size(&u.words[0..i], &v.words[0..i])
     }
+}
+
+pub fn algorithm_ge(u: &BigInt, v: &BigInt) -> bool {
+    !algorithm_lt(u, v)
 }
 
 pub fn algorithm_s(u: &BigInt, v: &BigInt) -> BigInt {
