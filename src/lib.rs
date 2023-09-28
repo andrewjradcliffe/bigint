@@ -86,26 +86,28 @@ pub fn algorithm_m(u: &BigInt, v: &BigInt) -> BigInt {
     BigInt { words: w }
 }
 
-fn lt_same_size(u: &[u8], v: &[u8]) -> bool {
+use std::cmp::Ordering;
+fn cmp_same_size(u: &[u8], v: &[u8]) -> Ordering {
     let m = u.len();
     assert_eq!(m, v.len());
     let mut i: usize = m;
-    let mut state = false;
+    let mut state = Ordering::Equal;
     while i > 0 {
         i -= 1;
         if u[i] == v[i] {
             continue;
         } else if u[i] > v[i] {
+            state = Ordering::Greater;
             break;
         } else {
-            state = true;
+            state = Ordering::Less;
             break;
         }
     }
     state
 }
 
-pub fn algorithm_lt(u: &BigInt, v: &BigInt) -> bool {
+pub fn algorithm_cmp(u: &BigInt, v: &BigInt) -> Ordering {
     let m = u.words.len();
     let n = v.words.len();
     if m < n {
@@ -113,23 +115,45 @@ pub fn algorithm_lt(u: &BigInt, v: &BigInt) -> bool {
         while i > m {
             i -= 1;
             if v.words[i] != 0 {
-                return true;
+                return Ordering::Less;
             }
         }
-        lt_same_size(&u.words[0..i], &v.words[0..i])
+        cmp_same_size(&u.words[0..i], &v.words[0..i])
     } else if m == n {
-        lt_same_size(&u.words[..], &v.words[..])
+        cmp_same_size(&u.words[..], &v.words[..])
     } else {
         // m > n
         let mut i: usize = m;
         while i > n {
             i -= 1;
             if u.words[i] != 0 {
-                return false;
+                return Ordering::Greater;
             }
         }
-        lt_same_size(&u.words[0..i], &v.words[0..i])
+        cmp_same_size(&u.words[0..i], &v.words[0..i])
     }
+}
+
+pub fn algorithm_lt(u: &BigInt, v: &BigInt) -> bool {
+    match algorithm_cmp(u, v) {
+        Ordering::Less => true,
+        _ => false,
+    }
+}
+pub fn algorithm_gt(u: &BigInt, v: &BigInt) -> bool {
+    match algorithm_cmp(u, v) {
+        Ordering::Greater => true,
+        _ => false,
+    }
+}
+pub fn algorithm_eq(u: &BigInt, v: &BigInt) -> bool {
+    match algorithm_cmp(u, v) {
+        Ordering::Equal => true,
+        _ => false,
+    }
+}
+pub fn algorithm_le(u: &BigInt, v: &BigInt) -> bool {
+    !algorithm_gt(u, v)
 }
 
 pub fn algorithm_ge(u: &BigInt, v: &BigInt) -> bool {
@@ -193,5 +217,49 @@ mod tests {
 
         let x = BigInt::from_rtol(&[0x00, 0x01, 0x02, 0x01]);
         assert!(!algorithm_lt(&x, &v));
+
+        let u = BigInt::from_rtol(&[0x01, 0xff]);
+        let v = BigInt::from_rtol(&[0x02, 0x01]);
+        assert!(algorithm_lt(&u, &v));
+
+        let u = BigInt::from_rtol(&[0xff, 0x01]);
+        let v = BigInt::from_rtol(&[0x02, 0xff]);
+        assert!(!algorithm_lt(&u, &v));
+    }
+
+    #[test]
+    fn gt_works() {
+        let u = BigInt::from_rtol(&[0x01, 0x00]);
+        let v = BigInt::from_rtol(&[0x02, 0x01]);
+        assert!(algorithm_gt(&v, &u));
+
+        let w = BigInt::from_rtol(&[0x00, 0x00, 0x02, 0x01]);
+        assert!(algorithm_gt(&w, &u));
+
+        let x = BigInt::from_rtol(&[0x00, 0x01, 0x02, 0x01]);
+        assert!(!algorithm_gt(&v, &x));
+
+        let u = BigInt::from_rtol(&[0x01, 0xff]);
+        let v = BigInt::from_rtol(&[0x02, 0x01]);
+        assert!(algorithm_gt(&v, &u));
+
+        let u = BigInt::from_rtol(&[0xff, 0x01]);
+        let v = BigInt::from_rtol(&[0x02, 0xff]);
+        assert!(!algorithm_gt(&v, &u));
+    }
+
+    #[test]
+    fn eq_works() {
+        let u = BigInt::from_rtol(&[0x00, 0x00]);
+        let v = BigInt::from_rtol(&[0x00]);
+        assert!(algorithm_eq(&u, &v));
+
+        let u = BigInt::from_rtol(&[0x00, 0x00, 0x00, 0x1f]);
+        let v = BigInt::from_rtol(&[0x00, 0x1f]);
+        assert!(algorithm_eq(&u, &v));
+
+        let u = BigInt::from_rtol(&[0x00, 0x00, 0x00, 0x1f]);
+        let v = BigInt::from_rtol(&[0x1f, 0x00]);
+        assert!(!algorithm_eq(&u, &v));
     }
 }
