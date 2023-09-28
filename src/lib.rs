@@ -1,7 +1,15 @@
+use std::fmt::Write;
+
+pub mod parser;
+
 #[derive(Debug, Clone)]
 pub struct BigInt {
     words: Vec<u8>,
 }
+
+pub use crate::parser::*;
+pub use ParseBigIntError::*;
+
 impl BigInt {
     pub fn from_rtol(rtol_words: &[u8]) -> Self {
         Self {
@@ -9,16 +17,79 @@ impl BigInt {
         }
     }
 
-    // // Not correct!
-    // pub fn print(&self) {
-    //     let mut s = String::new();
-    //     for w in self.words.iter() {
-    //         let mut lhs = format!("{:03}", w);
-    //         lhs.push_str(&s);
-    //         s = lhs;
-    //     }
-    //     println!("{}", s);
-    // }
+    pub fn try_from_hex(s: &str) -> Result<Self, ParseBigIntError> {
+        if s.len() == 0 {
+            Err(EmptyString)
+        } else if !s.starts_with("0x") {
+            Err(MissingPrefix)
+        } else {
+            let s = &s[2..];
+            let n = s.len();
+            if n == 0 {
+                Err(ZeroDigits)
+            } else {
+                // `m` is perhaps an overestimate, given underscores are permitted,
+                // but we need something to amortize the allocation.
+                let m = n / 2 + n & 1;
+                let mut words: Vec<u8> = Vec::with_capacity(m);
+                let mut iter = s.chars().rev().filter(|c| *c != '_');
+                let mut w: u8 = 0x00;
+                let mut i: usize = 0;
+                while let Some(c) = iter.next() {
+                    if !is_hex_digit(c) {
+                        return Err(InvalidDigit);
+                    } else {
+                        let u = char_to_hex(c);
+                        if i & 1 == 1 {
+                            words.push((u << 4) | w);
+                        } else {
+                            w = u;
+                        }
+                    }
+                    i += 1;
+                }
+                if i == 0 {
+                    return Err(NoValidDigits);
+                }
+                if i & 1 == 1 {
+                    words.push(w);
+                }
+                words.shrink_to_fit();
+                Ok(BigInt { words })
+            }
+        }
+    }
+
+    pub fn print_binary(&self) {
+        print!("0b");
+        self.words.iter().rev().for_each(|w| {
+            print!("{:08b}", w);
+        });
+        print!("\n");
+    }
+
+    pub fn print_lower_hex(&self) {
+        print!("0x");
+        self.words.iter().rev().for_each(|w| {
+            print!("{:02x}", w);
+        });
+        print!("\n");
+    }
+
+    pub fn to_lower_hex(&self) -> String {
+        let mut s = String::from("0x");
+        self.words.iter().rev().for_each(|w| {
+            write!(&mut s, "{:02x}", w).unwrap();
+        });
+        s
+    }
+    pub fn to_upper_hex(&self) -> String {
+        let mut s = String::from("0x");
+        self.words.iter().rev().for_each(|w| {
+            write!(&mut s, "{:02X}", w).unwrap();
+        });
+        s
+    }
 }
 
 pub fn algorithm_a(u: &BigInt, v: &BigInt) -> BigInt {
@@ -263,5 +334,65 @@ mod tests {
         let u = BigInt::from_rtol(&[0x00, 0x00, 0x00, 0x1f]);
         let v = BigInt::from_rtol(&[0x1f, 0x00]);
         assert!(!algorithm_eq(&u, &v));
+    }
+
+    #[test]
+    fn to_lower_hex_works() {
+        let u = BigInt::from_rtol(&[0x00]);
+        assert_eq!(u.to_lower_hex(), String::from("0x00"));
+
+        let u = BigInt::from_rtol(&[0x00, 0x01, 0xff]);
+        assert_eq!(u.to_lower_hex(), String::from("0x0001ff"));
+    }
+
+    #[test]
+    fn try_from_hex_works() {
+        let s = "0xfff";
+
+        let u = BigInt::try_from_hex(s).unwrap();
+        let v = BigInt::from_rtol(&[0x0f, 0xff]);
+        assert!(algorithm_eq(&u, &v));
+
+        let s = "0xbadc0ffeebadcafe";
+        let u = BigInt::try_from_hex(s).unwrap();
+        let v = BigInt::from_rtol(&[0xba, 0xdc, 0x0f, 0xfe, 0xeb, 0xad, 0xca, 0xfe]);
+        assert!(algorithm_eq(&u, &v));
+
+        let s = "0xbad_c0ffee_bad_cafe";
+        let u = BigInt::try_from_hex(s).unwrap();
+        assert!(algorithm_eq(&u, &v));
+
+        let s = "0x___bad_c0______________ffee__b_ad_cafe___";
+        let u = BigInt::try_from_hex(s).unwrap();
+        assert!(algorithm_eq(&u, &v));
+
+        // Error states
+        let s = "0x_";
+        let u = BigInt::try_from_hex(s);
+        assert!(matches!(u, Err(NoValidDigits)));
+
+        let s = "1";
+        let u = BigInt::try_from_hex(s);
+        assert!(matches!(u, Err(MissingPrefix)));
+
+        let s = "0xz";
+        let u = BigInt::try_from_hex(s);
+        assert!(matches!(u, Err(InvalidDigit)));
+
+        let s = "0x_z___";
+        let u = BigInt::try_from_hex(s);
+        assert!(matches!(u, Err(InvalidDigit)));
+
+        let s = "0x_ff_z";
+        let u = BigInt::try_from_hex(s);
+        assert!(matches!(u, Err(InvalidDigit)));
+
+        let s = "";
+        let u = BigInt::try_from_hex(s);
+        assert!(matches!(u, Err(EmptyString)));
+
+        let s = "0x";
+        let u = BigInt::try_from_hex(s);
+        assert!(matches!(u, Err(ZeroDigits)));
     }
 }
