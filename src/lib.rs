@@ -48,6 +48,130 @@ pub fn algorithm_ge(u: &BigInt, v: &BigInt) -> bool {
     assert_eq!(n, v.words.len());
     u.words[n - 1] >= v.words[n - 1]
 }
+fn lt_same_size(u: &[u8], v: &[u8]) -> bool {
+    let m = u.len();
+    assert_eq!(m, v.len());
+    let mut i: usize = m;
+    let mut state = false;
+    while i > 0 {
+        i -= 1;
+        if u[i] == v[i] {
+            continue;
+        } else if u[i] > v[i] {
+            break;
+        } else {
+            state = true;
+            break;
+        }
+    }
+    state
+}
+pub fn algorithm_lt(u: &BigInt, v: &BigInt) -> bool {
+    // // Version 1: Assuming that leading zeros are eliminated
+    // let m = u.words.len();
+    // let n = v.words.len();
+    // if m < n {
+    //     true
+    // } else if m == n {
+    //     // Option 1
+    //     let mut state = false;
+    //     let mut i = n;
+    //     while i > 0 {
+    //         i -= 1;
+    //         if u.words[i] == v.words[i] {
+    //             continue;
+    //         } else if u.words[i] > v.words[i] {
+    //             break;
+    //         } else {
+    //             state = true;
+    //             break;
+    //         }
+    //     }
+    //     state
+    //     // Option 2
+    //     // let mut i = n;
+    //     // while i > 0 {
+    //     //     i -= 1;
+    //     //     if u.words[i] == v.words[i] {
+    //     //         continue;
+    //     //     } else if u.words[i] > v.words[i] {
+    //     //         return false;
+    //     //     } else {
+    //     //         return true;
+    //     //     }
+    //     // }
+    //     // false
+    // } else {
+    //     // m > n, thus, provided that leading zeros are eliminated,
+    //     // this will necessarily be true
+    //     false
+    // }
+    // Version 2: leading zeros not eliminated
+    let m = u.words.len();
+    let n = v.words.len();
+    if m < n {
+        let mut i: usize = n;
+        while i > m {
+            i -= 1;
+            if v.words[i] != 0 {
+                return true;
+            }
+        }
+        // let mut state = false;
+        // while i > 0 {
+        //     i -= 1;
+        //     if u.words[i] == v.words[i] {
+        //         continue;
+        //     } else if u.words[i] > v.words[i] {
+        //         break;
+        //     } else {
+        //         state = true;
+        //         break;
+        //     }
+        // }
+        // state
+        lt_same_size(&u.words[0..i], &v.words[0..i])
+    } else if m == n {
+        // let mut i: usize = n;
+        // let mut state = false;
+        // while i > 0 {
+        //     i -= 1;
+        //     if u.words[i] == v.words[i] {
+        //         continue;
+        //     } else if u.words[i] > v.words[i] {
+        //         break;
+        //     } else {
+        //         state = true;
+        //         break;
+        //     }
+        // }
+        // state
+        lt_same_size(&u.words[..], &v.words[..])
+    } else {
+        // m > n
+        let mut i: usize = m;
+        while i > n {
+            i -= 1;
+            if u.words[i] != 0 {
+                return false;
+            }
+        }
+        // let mut state = false;
+        // while i > 0 {
+        //     i -= 1;
+        //     if u.words[i] == v.words[i] {
+        //         continue;
+        //     } else if u.words[i] > v.words[i] {
+        //         break;
+        //     } else {
+        //         state = true;
+        //         break;
+        //     }
+        // }
+        // state
+        lt_same_size(&u.words[0..i], &v.words[0..i])
+    }
+}
 
 pub fn algorithm_s(u: &BigInt, v: &BigInt) -> BigInt {
     let n = u.words.len();
