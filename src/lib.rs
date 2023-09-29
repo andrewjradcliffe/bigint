@@ -105,7 +105,7 @@ impl BigInt {
         let w_0 = u_0.wrapping_sub(1).wrapping_add(1).wrapping_add(u8::MAX);
         let mut k = (!(w_0 > u_0)) as u8;
         self.words[0] = w_0;
-        // Then, loop as usual
+        // Then, loop as usual.
         let mut j: usize = 1;
         while j < n {
             let u_j = self.words[j];
@@ -123,7 +123,7 @@ impl BigInt {
         let w_j = u_j.wrapping_add(1);
         let mut k = (w_j < u_j.max(1)) as u8;
         self.words[0] = w_j;
-
+        // Then, loop as usual.
         let mut j: usize = 1;
         while j < n {
             let w_j = self.words[j];
