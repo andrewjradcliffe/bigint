@@ -728,6 +728,64 @@ mod tests {
     }
 
     #[test]
+    fn modular_increment_works() {
+        let mut u = BigInt::from_rtol(&[0xff]);
+        u.modular_increment();
+        assert_eq!(u.words.len(), 1);
+        assert!(algorithm_eq(&u, &u));
+
+        let mut u = BigInt::from_rtol(&[0xff, 0xff, 0xff]);
+        u.modular_increment();
+        assert_eq!(u.words.len(), 3);
+        assert!(algorithm_eq(&u, &u));
+    }
+
+    #[test]
+    fn complement_works() {
+        let mut u = BigInt::from_rtol(&[0xff]);
+        u.complement();
+        assert_eq!(u.words.len(), 1);
+        assert!(algorithm_eq(&u, &BigInt::from_rtol(&[0x00])));
+
+        let mut u = BigInt::from_rtol(&[0xf0, 0x0f, 0xee]);
+        u.complement();
+        assert_eq!(u.words.len(), 3);
+        assert!(algorithm_eq(&u, &BigInt::from_rtol(&[0x0f, 0xf0, 0x11])));
+    }
+
+    #[test]
+    fn negate_works() {
+        let mut u = BigInt::from_rtol(&[0x7f]);
+        u.negate();
+        assert_eq!(u.words.len(), 1);
+        assert!(algorithm_eq(&u, &BigInt::from_rtol(&[0x81])));
+
+        let mut u = BigInt::from_rtol(&[0x00, 0x07]);
+        u.negate();
+        assert_eq!(u.words.len(), 2);
+        assert!(algorithm_eq(&u, &BigInt::from_rtol(&[0xff, 0xf9])));
+
+        // Negation to implement subtraction
+        let u = BigInt::from_rtol(&[0x01]);
+        let mut v = BigInt::from_rtol(&[0x07]);
+        v.negate();
+        let w = algorithm_a(&u, &v);
+        assert!(algorithm_eq(&w, &BigInt::from_rtol(&[0xfa])));
+
+        let u = BigInt::from_rtol(&[0x00, 0x01]);
+        let mut v = BigInt::from_rtol(&[0x00, 0x07]);
+        v.negate();
+        let w = algorithm_a(&u, &v);
+        assert!(algorithm_eq(&w, &BigInt::from_rtol(&[0xff, 0xfa])));
+
+        let u = BigInt::from_rtol(&[0x01]);
+        let mut v = BigInt::from_rtol(&[0x00, 0x07]);
+        v.negate();
+        let w = algorithm_a_sz(&u, &v);
+        assert!(algorithm_eq(&w, &BigInt::from_rtol(&[0xff, 0xfa])));
+    }
+
+    #[test]
     fn to_lower_hex_works() {
         let u = BigInt::from_rtol(&[0x00]);
         assert_eq!(u.to_lower_hex(), String::from("0x00"));
