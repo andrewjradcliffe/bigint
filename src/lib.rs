@@ -172,7 +172,7 @@ impl BigInt {
     pub fn complement(&mut self) {
         self.words.iter_mut().for_each(|w| *w = !*w);
     }
-    pub fn negate(&mut self) {
+    pub fn modular_negate(&mut self) {
         self.complement();
         self.modular_increment();
     }
@@ -764,60 +764,64 @@ mod tests {
     }
 
     #[test]
-    fn negate_works() {
+    fn modular_negate_works() {
         let mut u = BigInt::from_rtol(&[0x7f]);
-        u.negate();
+        u.modular_negate();
         assert_eq!(u.words.len(), 1);
         assert!(algorithm_eq(&u, &BigInt::from_rtol(&[0x81])));
 
         let mut u = BigInt::from_rtol(&[0x00, 0x07]);
-        u.negate();
+        u.modular_negate();
         assert_eq!(u.words.len(), 2);
         assert!(algorithm_eq(&u, &BigInt::from_rtol(&[0xff, 0xf9])));
+
+        // let mut u = BigInt::from_rtol(&[0xff]);
+        // u.negate();
+        // assert!(algorithm_eq(&u, &BigInt::from_rtol(&[0x81])));
 
         // Negation to implement subtraction
         let u = BigInt::from_rtol(&[0x01]);
         let mut v = BigInt::from_rtol(&[0x07]);
-        v.negate();
+        v.modular_negate();
         let w = algorithm_a(&u, &v);
         assert!(algorithm_eq(&w, &BigInt::from_rtol(&[0xfa])));
 
         let u = BigInt::from_rtol(&[0x00, 0x01]);
         let mut v = BigInt::from_rtol(&[0x00, 0x07]);
-        v.negate();
+        v.modular_negate();
         let w = algorithm_a(&u, &v);
         assert!(algorithm_eq(&w, &BigInt::from_rtol(&[0xff, 0xfa])));
 
         let u = BigInt::from_rtol(&[0x01]);
         let mut v = BigInt::from_rtol(&[0x00, 0x07]);
-        v.negate();
+        v.modular_negate();
         let w = algorithm_a_sz(&u, &v);
         assert!(algorithm_eq(&w, &BigInt::from_rtol(&[0xff, 0xfa])));
     }
 
     #[test]
-    fn sub_using_negation_works() {
+    fn sub_using_modular_negation_works() {
         let u = BigInt::from_rtol(&[0xba, 0xdc, 0x0f]);
         let v = BigInt::from_rtol(&[0x00, 0xaa, 0xbb]);
 
         let lhs = algorithm_s(&u, &v);
 
         let mut n_v = v.clone();
-        n_v.negate();
+        n_v.modular_negate();
 
         let rhs = algorithm_a_modular(&u, &n_v);
         assert!(algorithm_eq(&lhs, &rhs));
 
         let u = BigInt::from_rtol(&[0x01, 0x00]);
         let mut v = BigInt::from_rtol(&[0x02, 0x00]);
-        v.negate();
+        v.modular_negate();
 
         let w = algorithm_a_modular(&u, &v);
         assert!(algorithm_eq(&w, &BigInt::from_rtol(&[0xff, 0x00])));
 
         let u = BigInt::from_rtol(&[0x01, 0x00]);
         let mut v = BigInt::from_rtol(&[0x80, 0x00, 0x00, 0x00]);
-        v.negate();
+        v.modular_negate();
 
         let w = algorithm_a_modular(&u, &v);
         assert!(algorithm_eq(
