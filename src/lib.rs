@@ -664,6 +664,18 @@ mod tests {
         u.increment();
         let v = BigInt::from_rtol(&[0x02, 0x00]);
         assert!(algorithm_eq(&u, &v));
+
+        let mut u = BigInt::from_rtol(&[0x01, 0xfe]);
+        u.increment();
+        let v = BigInt::from_rtol(&[0x01, 0xff]);
+        assert!(algorithm_eq(&u, &v));
+
+        let mut u = BigInt::from_rtol(&[0x01, 0xf0]);
+        for _ in 0..16 {
+            u.increment();
+        }
+        let v = BigInt::from_rtol(&[0x02, 0x00]);
+        assert!(algorithm_eq(&u, &v));
     }
 
     #[test]
