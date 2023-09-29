@@ -60,6 +60,83 @@ impl BigInt {
         }
     }
 
+    pub fn is_even(&self) -> bool {
+        self.words[0] & 1 == 0
+    }
+    pub fn is_odd(&self) -> bool {
+        self.words[0] & 1 == 1
+    }
+    pub fn is_zero(&self) -> bool {
+        // This is the literal implementation
+        // self.words.iter().all(|x| *x == 0)
+        // This might be faster, depending on the internals of `all`
+        self.words.iter().fold(0x00, |acc, x| acc | *x) == 0x00
+    }
+
+    pub fn halve(&mut self) {
+        let mut msb: u8 = 0x00;
+        for w in self.words.iter_mut().rev() {
+            let t = *w;
+            let w_prime = msb | (t >> 1);
+            msb = t << 7;
+            *w = w_prime;
+        }
+    }
+
+    pub fn double(&mut self) {
+        let mut lsb: u8 = 0x00;
+        for w in self.words.iter_mut().rev() {
+            let t = *w;
+            let w_prime = (t << 1) | lsb;
+            lsb = t >> 7;
+            *w = w_prime;
+        }
+        if lsb == 0x01 {
+            self.words.push(0x01);
+        }
+    }
+
+    pub fn decrement(&mut self) {
+        // This assumes that the bigint is >= 1
+        assert!(!self.is_zero(), "attempt to subtract from 0");
+        let n = self.words.len();
+        // Initial iteration; k is 1 initially, but write as const.
+        let u_0 = self.words[0];
+        let w_0 = u_0.wrapping_sub(1).wrapping_add(1).wrapping_add(u8::MAX);
+        let mut k = (!(w_0 > u_0)) as u8;
+        self.words[0] = w_0;
+        // Then, loop as usual
+        let mut j: usize = 1;
+        while j < n {
+            let u_j = self.words[j];
+            let w_j = u_j.wrapping_add(k).wrapping_add(u8::MAX);
+            k = (!(w_j > u_j)) as u8;
+            self.words[j] = w_j;
+            j += 1;
+        }
+    }
+
+    pub fn increment(&mut self) {
+        let n = self.words.len();
+        // Initial iteration; k is 0 initially.
+        let u_j = self.words[0];
+        let w_j = u_j.wrapping_add(1);
+        let mut k = (w_j < u_j.max(1)) as u8;
+        self.words[0] = w_j;
+
+        let mut j: usize = 1;
+        while j < n {
+            let w_j = self.words[j];
+            let w_j_prime = w_j.wrapping_add(k);
+            k = (w_j_prime < w_j) as u8;
+            self.words[j] = w_j_prime;
+            j += 1;
+        }
+        if k != 0 {
+            self.words.push(k);
+        }
+    }
+
     pub fn print_binary(&self) {
         print!("0b");
         self.words.iter().rev().for_each(|w| {
@@ -109,7 +186,9 @@ pub fn algorithm_a(u: &BigInt, v: &BigInt) -> BigInt {
         w.push(w_j_prime);
         j += 1;
     }
-    w.push(k);
+    if k != 0 {
+        w.push(k);
+    }
     BigInt { words: w }
 }
 
@@ -233,6 +312,50 @@ pub fn algorithm_ne(u: &BigInt, v: &BigInt) -> bool {
     !algorithm_eq(u, v)
 }
 
+pub fn half(u: &BigInt) -> BigInt {
+    let mut u = u.clone();
+    let mut msb: u8 = 0x00;
+    for w in u.words.iter_mut().rev() {
+        let t = *w;
+        let w_prime = msb | (t >> 1);
+        msb = t << 7;
+        *w = w_prime;
+    }
+    u
+}
+
+pub fn double(u: &BigInt) -> BigInt {
+    let mut u = u.clone();
+    let mut lsb: u8 = 0x00;
+    for w in u.words.iter_mut().rev() {
+        let t = *w;
+        let w_prime = (t << 1) | lsb;
+        lsb = t >> 7;
+        *w = w_prime;
+    }
+    if lsb == 0x01 {
+        u.words.push(0x01);
+    }
+    u
+}
+
+pub fn algorithm_m_rp(u: &BigInt, v: &BigInt) -> BigInt {
+    let mut a = BigInt { words: vec![0x00] };
+    let mut b = u.clone();
+    let mut n = v.clone();
+    while !n.is_zero() {
+        if n.is_even() {
+            b.double();
+            n.halve();
+        } else {
+            let t = algorithm_a(&a, &b);
+            a = t;
+            n.decrement();
+        }
+    }
+    b
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -334,6 +457,107 @@ mod tests {
         let u = BigInt::from_rtol(&[0x00, 0x00, 0x00, 0x1f]);
         let v = BigInt::from_rtol(&[0x1f, 0x00]);
         assert!(!algorithm_eq(&u, &v));
+    }
+
+    #[test]
+    fn is_even_works() {
+        let u = BigInt::from_rtol(&[0x00]);
+        assert!(u.is_even());
+
+        let u = BigInt::from_rtol(&[0x01]);
+        assert!(!u.is_even());
+
+        let u = BigInt::from_rtol(&[0xfe]);
+        assert!(u.is_even());
+    }
+
+    #[test]
+    fn is_odd_works() {
+        let u = BigInt::from_rtol(&[0x00]);
+        assert!(!u.is_odd());
+
+        let u = BigInt::from_rtol(&[0x03]);
+        assert!(u.is_odd());
+
+        let u = BigInt::from_rtol(&[0x04]);
+        assert!(!u.is_odd());
+
+        let u = BigInt::from_rtol(&[0xff]);
+        assert!(u.is_odd());
+    }
+
+    #[test]
+    fn is_zero_works() {
+        let u = BigInt::from_rtol(&[0x00]);
+        assert!(u.is_zero());
+
+        let u = BigInt::from_rtol(&[0x01, 0x02, 0x03, 0x04, 0x05, 0xff]);
+        assert!(!u.is_zero());
+
+        let u = BigInt::from_rtol(&[0x00, 0x00, 0x00, 0x00, 0x00]);
+        assert!(u.is_zero());
+    }
+
+    #[test]
+    fn decrement_works() {
+        let mut u = BigInt::from_rtol(&[0x01]);
+        u.decrement();
+        assert!(u.is_zero());
+
+        let mut u = BigInt::from_rtol(&[0x01, 0x00]);
+        u.decrement();
+        let v = BigInt::from_rtol(&[0x00, 0xff]);
+        assert!(algorithm_eq(&u, &v));
+    }
+
+    #[test]
+    fn increment_works() {
+        let mut u = BigInt::from_rtol(&[0x00]);
+        let v = BigInt::from_rtol(&[0x00, 0x01]);
+        u.increment();
+        assert!(algorithm_eq(&u, &v));
+
+        let mut u = BigInt::from_rtol(&[0x01, 0xff]);
+        u.increment();
+        let v = BigInt::from_rtol(&[0x02, 0x00]);
+        assert!(algorithm_eq(&u, &v));
+    }
+
+    #[test]
+    fn half_works() {
+        let u = BigInt::from_rtol(&[0xff]);
+        let v = algorithm_a(&u, &u);
+        let w = half(&v);
+        assert!(algorithm_eq(&u, &w));
+
+        let u = BigInt::from_rtol(&[0xff]);
+        let u2 = BigInt::from_rtol(&[0x02]);
+        let v = algorithm_m(&u, &u2);
+        let w = half(&v);
+        assert!(algorithm_eq(&u, &w));
+    }
+
+    #[test]
+    fn square_works() {
+        let u = BigInt::from_rtol(&[0x00]);
+        let d = double(&u);
+        let rhs = BigInt::from_rtol(&[0x00]);
+        assert!(algorithm_eq(&d, &rhs));
+
+        let u = BigInt::from_rtol(&[0x01]);
+        let d = double(&u);
+        let rhs = BigInt::from_rtol(&[0x02]);
+        assert!(algorithm_eq(&d, &rhs));
+
+        let u = BigInt::from_rtol(&[0x0f]);
+        let d = double(&u);
+        let rhs = BigInt::from_rtol(&[0x1e]);
+        assert!(algorithm_eq(&d, &rhs));
+
+        let u = BigInt::from_rtol(&[0xff]);
+        let d = double(&u);
+        let rhs = BigInt::from_rtol(&[0x01, 0xfe]);
+        assert!(algorithm_eq(&d, &rhs));
     }
 
     #[test]
