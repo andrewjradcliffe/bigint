@@ -357,6 +357,9 @@ pub fn double(u: &BigInt) -> BigInt {
     u
 }
 
+// This, however, is very slow due to the fact that the running
+// time is now lg(min(u, v)), rather than a function of the
+// number of words.
 pub fn algorithm_m_rp(u: &BigInt, v: &BigInt) -> BigInt {
     if algorithm_ge(u, v) {
         let mut a = BigInt { words: vec![0x00] };
@@ -448,6 +451,17 @@ mod tests {
         let w = algorithm_m(&u, &v);
         assert_eq!(w.words[0], 0xe1);
         assert_eq!(w.words[1], 0x00);
+    }
+
+    #[test]
+    fn multiplication_rp_works() {
+        let u = BigInt::from_rtol(&[0xba, 0xdc, 0x0f, 0xfe, 0xe0]);
+        let v = BigInt::from_rtol(&[0xba, 0xdf, 0x00, 0xd5, 0xee]);
+
+        let lhs = algorithm_m(&u, &v);
+        let rhs = algorithm_m_rp(&u, &v);
+
+        assert!(algorithm_eq(&lhs, &rhs));
     }
 
     #[test]
