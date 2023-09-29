@@ -358,20 +358,24 @@ pub fn double(u: &BigInt) -> BigInt {
 }
 
 pub fn algorithm_m_rp(u: &BigInt, v: &BigInt) -> BigInt {
-    let mut a = BigInt { words: vec![0x00] };
-    let mut b = u.clone();
-    let mut n = v.clone();
-    while !n.is_zero() {
-        if n.is_even() {
-            b.double();
-            n.halve();
-        } else {
-            let t = algorithm_a(&a, &b);
-            a = t;
-            n.decrement();
+    if algorithm_ge(u, v) {
+        let mut a = BigInt { words: vec![0x00] };
+        let mut b = u.clone();
+        let mut n = v.clone();
+        while !n.is_zero() {
+            if n.is_even() {
+                b.double();
+                n.halve();
+            } else {
+                let t = algorithm_a_sz(&a, &b);
+                a = t;
+                n.decrement();
+            }
         }
+        a
+    } else {
+        algorithm_m_rp(v, u)
     }
-    b
 }
 
 #[cfg(test)]
