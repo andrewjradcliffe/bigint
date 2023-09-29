@@ -192,6 +192,39 @@ pub fn algorithm_a(u: &BigInt, v: &BigInt) -> BigInt {
     BigInt { words: w }
 }
 
+pub fn algorithm_a_sz(u: &BigInt, v: &BigInt) -> BigInt {
+    let m = u.words.len();
+    let n = v.words.len();
+    if m < n {
+        algorithm_a_sz(v, u)
+    } else {
+        let mut w: Vec<u8> = Vec::with_capacity(m + 1);
+        let mut j: usize = 0;
+        let mut k: u8 = 0;
+        while j < n {
+            let u_j = u.words[j];
+            let v_j = v.words[j];
+            let w_j = u_j.wrapping_add(v_j);
+            let k_prime = w_j < u_j.max(v_j);
+            let w_j_prime = w_j.wrapping_add(k);
+            k = (k_prime | (w_j_prime < w_j)) as u8;
+            w.push(w_j_prime);
+            j += 1;
+        }
+        while j < m {
+            let w_j = u.words[j];
+            let w_j_prime = w_j.wrapping_add(k);
+            k = (w_j_prime < w_j) as u8;
+            w.push(w_j_prime);
+            j += 1;
+        }
+        if k != 0 {
+            w.push(k);
+        }
+        BigInt { words: w }
+    }
+}
+
 pub fn algorithm_s(u: &BigInt, v: &BigInt) -> BigInt {
     let n = u.words.len();
     assert_eq!(n, v.words.len());
@@ -367,6 +400,32 @@ mod tests {
         let w = algorithm_a(&u, &v);
         assert_eq!(w.words[0], 0xfe);
         assert_eq!(w.words[1], 0x01);
+    }
+
+    #[test]
+    fn addition_varsize_works() {
+        let u = BigInt::from_rtol(&[0x01]);
+        let v = BigInt::from_rtol(&[0x00, 0x00, 0x00, 0x00, 0x01]);
+        let w = algorithm_a_sz(&u, &v);
+        assert_eq!(w.words.len(), 5);
+        let rhs = BigInt::from_rtol(&[0x00, 0x00, 0x00, 0x00, 0x02]);
+        assert!(algorithm_eq(&w, &rhs));
+
+        let u = BigInt::from_rtol(&[0x01, 0x01, 0x01]);
+        let v = BigInt::from_rtol(&[0x00, 0x00, 0xff, 0x00, 0x01]);
+        let w = algorithm_a_sz(&u, &v);
+
+        let lhs = BigInt::from_rtol(&[0x00, 0x00, 0x01, 0x01, 0x01]);
+        let rhs = algorithm_a(&lhs, &v);
+        assert!(algorithm_eq(&w, &rhs));
+
+        let u = BigInt::from_rtol(&[0x0f, 0xf0, 0x01, 0x01, 0x01]);
+        let v = BigInt::from_rtol(&[0x00, 0x00, 0xff, 0x00, 0x01]);
+        let w = algorithm_a_sz(&u, &v);
+
+        let lhs = BigInt::from_rtol(&[0x0f, 0xf0, 0x01, 0x01, 0x01]);
+        let rhs = algorithm_a(&lhs, &v);
+        assert!(algorithm_eq(&w, &rhs));
     }
 
     #[test]
