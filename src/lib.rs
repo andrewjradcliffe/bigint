@@ -85,7 +85,7 @@ impl BigInt {
 
     pub fn double(&mut self) {
         let mut lsb: u8 = 0x00;
-        for w in self.words.iter_mut().rev() {
+        for w in self.words.iter_mut() {
             let t = *w;
             let w_prime = (t << 1) | lsb;
             lsb = t >> 7;
@@ -347,28 +347,13 @@ pub fn algorithm_ne(u: &BigInt, v: &BigInt) -> bool {
 
 pub fn half(u: &BigInt) -> BigInt {
     let mut u = u.clone();
-    let mut msb: u8 = 0x00;
-    for w in u.words.iter_mut().rev() {
-        let t = *w;
-        let w_prime = msb | (t >> 1);
-        msb = t << 7;
-        *w = w_prime;
-    }
+    u.halve();
     u
 }
 
 pub fn double(u: &BigInt) -> BigInt {
     let mut u = u.clone();
-    let mut lsb: u8 = 0x00;
-    for w in u.words.iter_mut().rev() {
-        let t = *w;
-        let w_prime = (t << 1) | lsb;
-        lsb = t >> 7;
-        *w = w_prime;
-    }
-    if lsb == 0x01 {
-        u.words.push(0x01);
-    }
+    u.double();
     u
 }
 
@@ -597,7 +582,7 @@ mod tests {
     }
 
     #[test]
-    fn square_works() {
+    fn double_works() {
         let u = BigInt::from_rtol(&[0x00]);
         let d = double(&u);
         let rhs = BigInt::from_rtol(&[0x00]);
@@ -617,6 +602,18 @@ mod tests {
         let d = double(&u);
         let rhs = BigInt::from_rtol(&[0x01, 0xfe]);
         assert!(algorithm_eq(&d, &rhs));
+
+        let mut d = d;
+        d.double();
+        let rhs = BigInt::from_rtol(&[0x03, 0xfc]);
+        assert!(algorithm_eq(&d, &rhs));
+
+        let mut u = BigInt::from_rtol(&[0x01]);
+        for p in 1..7 {
+            u.double();
+            let rhs = BigInt::from_rtol(&[1 << p]);
+            assert!(algorithm_eq(&u, &rhs));
+        }
     }
 
     #[test]
