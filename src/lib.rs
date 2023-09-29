@@ -232,11 +232,11 @@ pub fn algorithm_a(u: &BigInt, v: &BigInt) -> BigInt {
     BigInt { words: w }
 }
 
-pub fn algorithm_a_sz(u: &BigInt, v: &BigInt) -> BigInt {
+pub fn algorithm_a_varsize(u: &BigInt, v: &BigInt) -> (BigInt, u8) {
     let m = u.words.len();
     let n = v.words.len();
     if m < n {
-        algorithm_a_sz(v, u)
+        algorithm_a_varsize(v, u)
     } else {
         let mut w: Vec<u8> = Vec::with_capacity(m + 1);
         let mut j: usize = 0;
@@ -258,11 +258,21 @@ pub fn algorithm_a_sz(u: &BigInt, v: &BigInt) -> BigInt {
             w.push(w_j_prime);
             j += 1;
         }
-        if k != 0 {
-            w.push(k);
-        }
-        BigInt { words: w }
+        (BigInt { words: w }, k)
     }
+}
+
+pub fn algorithm_a_sz(u: &BigInt, v: &BigInt) -> BigInt {
+    let (mut w, k) = algorithm_a_varsize(u, v);
+    if k != 0 {
+        w.words.push(k)
+    }
+    w
+}
+
+pub fn algorithm_a_modular(u: &BigInt, v: &BigInt) -> BigInt {
+    let (w, _) = algorithm_a_varsize(u, v);
+    w
 }
 
 pub fn algorithm_s(u: &BigInt, v: &BigInt) -> BigInt {
