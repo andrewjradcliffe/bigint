@@ -360,6 +360,32 @@ pub fn double(u: &BigInt) -> BigInt {
 // This, however, is very slow due to the fact that the running
 // time is now lg(min(u, v)), rather than a function of the
 // number of words.
+/*
+A more rigorous analysis, based on u: m-place word, v: n-place word
+where m >= n, in which a word consists of 2^p binary digits.
+The Russian peasant algorithm requires lg((2^p)^n) = lg(2^(pn)) = pn steps.
+
+The internal operations have time complexity:
+Ω(m) : doubling, addition
+Θ(n) : halving, decrement
+Θ(n) : zero check
+Θ(1) : even/odd check
+
+Thus, we have the
+∑ᵢ₌₀ᵖⁿ m + i + 2n + 1 = mpn + 2p * n^2 + ((p^2) * (n^2) + 3pn)/2
+
+In the worst case, n=m, thus, 3p * n^2 + ((p^2) * (n^2) + 3pn)/2
+which is O((p^2) * (n^2)), thus, we can determine an asymptotically tight
+upper bound.
+When m >= (n * (p + 4) + 3)/2, then the m-place word dominates the running time
+of the algorithm. However, when this is not satisfied, the m-exclusive terms
+will dominate, in which case the complexity equivalent to the worst case.
+This enables us to determine an asymptotically tight lower bound, i.e. Ω(mpn),
+which applies to all cases in which the m-derived terms dominate.
+
+From the analysis, it is now clear that this algorithm is inferior to
+the simple multiplication algorithm which has time complexity Θ(mn).
+*/
 pub fn algorithm_m_rp(u: &BigInt, v: &BigInt) -> BigInt {
     if algorithm_ge(u, v) {
         let mut a = BigInt { words: vec![0x00] };
