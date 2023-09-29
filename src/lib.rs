@@ -116,25 +116,56 @@ impl BigInt {
         }
     }
 
-    pub fn increment(&mut self) {
-        let n = self.words.len();
-        // Initial iteration; k is 0 initially.
-        let u_j = self.words[0];
-        let w_j = u_j.wrapping_add(1);
-        let mut k = (w_j < u_j.max(1)) as u8;
-        self.words[0] = w_j;
-        // Then, loop as usual.
-        let mut j: usize = 1;
-        while j < n {
-            let w_j = self.words[j];
-            let w_j_prime = w_j.wrapping_add(k);
-            k = (w_j_prime < w_j) as u8;
-            self.words[j] = w_j_prime;
-            j += 1;
+    fn increment_with_carry(&mut self) -> u8 {
+        // Literal implementation
+        // let n = self.words.len();
+        // let mut k: u8 = 1;
+        // let mut j: usize = 0;
+        // while j < n {
+        //     if k == 0 {
+        //         break;
+        //     } else {
+        //         let w_j = self.words[j];
+        //         let w_j_prime = w_j.wrapping_add(k);
+        //         k = (w_j_prime < w_j) as u8;
+        //         self.words[j] = w_j_prime;
+        //         j += 1;
+        //     }
+        // }
+        // k
+        // Rust-friendlier implementation
+        let mut k: u8 = 1;
+        for w_j in self.words.iter_mut() {
+            if k == 0 {
+                // The probability that the initial carry will quickly
+                // be consumed is high, thus, this branch is worthwhile.
+                break;
+            } else {
+                let w_j_prime = w_j.wrapping_add(k);
+                k = (w_j_prime < *w_j) as u8;
+                *w_j = w_j_prime;
+            }
         }
+        k
+    }
+
+    pub fn increment(&mut self) {
+        let k = self.increment_with_carry();
         if k != 0 {
             self.words.push(k);
         }
+    }
+
+    pub fn modular_increment(&mut self) {
+        self.increment_with_carry();
+    }
+
+    pub fn complement(&mut self) {
+        self.words.iter_mut().for_each(|w| *w = !*w);
+    }
+    pub fn negate(&mut self) {
+        self.complement();
+        self.modular_increment();
     }
 
     pub fn print_binary(&self) {
