@@ -796,6 +796,37 @@ mod tests {
     }
 
     #[test]
+    fn sub_using_negation_works() {
+        let u = BigInt::from_rtol(&[0xba, 0xdc, 0x0f]);
+        let v = BigInt::from_rtol(&[0x00, 0xaa, 0xbb]);
+
+        let lhs = algorithm_s(&u, &v);
+
+        let mut n_v = v.clone();
+        n_v.negate();
+
+        let rhs = algorithm_a_modular(&u, &n_v);
+        assert!(algorithm_eq(&lhs, &rhs));
+
+        let u = BigInt::from_rtol(&[0x01, 0x00]);
+        let mut v = BigInt::from_rtol(&[0x02, 0x00]);
+        v.negate();
+
+        let w = algorithm_a_modular(&u, &v);
+        assert!(algorithm_eq(&w, &BigInt::from_rtol(&[0xff, 0x00])));
+
+        let u = BigInt::from_rtol(&[0x01, 0x00]);
+        let mut v = BigInt::from_rtol(&[0x80, 0x00, 0x00, 0x00]);
+        v.negate();
+
+        let w = algorithm_a_modular(&u, &v);
+        assert!(algorithm_eq(
+            &w,
+            &BigInt::from_rtol(&[0x80, 0x00, 0x01, 0x00])
+        ));
+    }
+
+    #[test]
     fn to_lower_hex_works() {
         let u = BigInt::from_rtol(&[0x00]);
         assert_eq!(u.to_lower_hex(), String::from("0x00"));
