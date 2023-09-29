@@ -68,9 +68,9 @@ impl BigInt {
     }
     pub fn is_zero(&self) -> bool {
         // This is the literal implementation
-        // self.words.iter().all(|x| *x == 0)
+        self.words.iter().all(|x| *x == 0)
         // This might be faster, depending on the internals of `all`
-        self.words.iter().fold(0x00, |acc, x| acc | *x) == 0x00
+        // self.words.iter().fold(0x00, |acc, x| acc | *x) == 0x00
     }
 
     pub fn halve(&mut self) {
