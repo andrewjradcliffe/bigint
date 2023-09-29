@@ -99,20 +99,29 @@ impl BigInt {
     pub fn decrement(&mut self) {
         // This assumes that the bigint is >= 1
         assert!(!self.is_zero(), "attempt to subtract from 0");
-        let n = self.words.len();
-        // Initial iteration; k is 1 initially, but write as const.
-        let u_0 = self.words[0];
-        let w_0 = u_0.wrapping_sub(1).wrapping_add(1).wrapping_add(u8::MAX);
-        let mut k = (!(w_0 > u_0)) as u8;
-        self.words[0] = w_0;
-        // Then, loop as usual.
-        let mut j: usize = 1;
-        while j < n {
-            let u_j = self.words[j];
-            let w_j = u_j.wrapping_add(k).wrapping_add(u8::MAX);
-            k = (!(w_j > u_j)) as u8;
-            self.words[j] = w_j;
-            j += 1;
+        // Literal implementation
+        // let n = self.words.len();
+        // let mut j: usize = 0;
+        // let mut k: u8 = 0;
+        // while j < n {
+        //     let u_j = self.words[j];
+        //     let w_j = u_j.wrapping_add(k).wrapping_add(u8::MAX);
+        //     k = (w_j <= u_j) as u8; // (!(w_j > u_j)) as u8;
+        //     self.words[j] = w_j;
+        //     j += 1;
+        // }
+        // Rust-friendlier implementation
+        let mut k: u8 = 0;
+        for w_j in self.words.iter_mut() {
+            if k == 1 {
+                // The probability that the initial borrow will quickly
+                // be extinguished is high, thus, this branch is worthwhile.
+                break;
+            } else {
+                let w_j_prime = w_j.wrapping_add(k).wrapping_add(u8::MAX);
+                k = (w_j_prime <= *w_j) as u8;
+                *w_j = w_j_prime;
+            }
         }
     }
 
@@ -623,9 +632,24 @@ mod tests {
         u.decrement();
         assert!(u.is_zero());
 
+        let mut u = BigInt::from_rtol(&[0x03]);
+        u.decrement();
+        let v = BigInt::from_rtol(&[0x02]);
+        assert!(algorithm_eq(&u, &v));
+
         let mut u = BigInt::from_rtol(&[0x01, 0x00]);
         u.decrement();
         let v = BigInt::from_rtol(&[0x00, 0xff]);
+        assert!(algorithm_eq(&u, &v));
+
+        let mut u = BigInt::from_rtol(&[0x01, 0xff, 0x00]);
+        u.decrement();
+        let v = BigInt::from_rtol(&[0x01, 0xfe, 0xff]);
+        assert!(algorithm_eq(&u, &v));
+
+        let mut u = BigInt::from_rtol(&[0x01, 0xff, 0x00, 0x00, 0x00]);
+        u.decrement();
+        let v = BigInt::from_rtol(&[0x01, 0xfe, 0xff, 0xff, 0xff]);
         assert!(algorithm_eq(&u, &v));
     }
 
