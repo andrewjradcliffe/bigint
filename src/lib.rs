@@ -319,6 +319,88 @@ pub fn algorithm_m(u: &BigInt, v: &BigInt) -> BigInt {
     BigInt { words: w }
 }
 
+pub fn algorithm_d(u: &BigInt, v: &BigInt) -> BigInt {
+    let n = v.words.len();
+    let m = u.words.len() - n;
+    let mut q: Vec<u8> = Vec::with_capacity(m + 1);
+    q.resize(m + 1, 0);
+    let b: u16 = 1 << 8;
+    let d = (b / (v.words[n - 1] as u16 + 1u16)) as u8;
+    let mut u = algorithm_m(&u, &BigInt { words: vec![d] });
+    if d == 1 {
+        u.words.push(0);
+    }
+    // d is such that v * d will not increase the number of places
+    let v = {
+        let mut v = v.clone();
+        let d = d as u16;
+        let mut k: u16 = 0;
+        let mut i: usize = 0;
+        while i < n {
+            let t = (v.words[i] as u16) * d + k;
+            k = t >> 8;
+            v.words[i] = (t & 0x00ff) as u8;
+            i += 1;
+        }
+        v
+    };
+    let v_n_1 = v.words[n - 1] as u16;
+    let v_n_2 = v.words[n - 2] as u16;
+    let mut j: usize = m + 1;
+    while j > 0 {
+        j -= 1;
+        let u_jn = u.words[j + n] as u16;
+        let u_jn_1 = u.words[j + n - 1] as u16;
+        let u_jn_2 = u.words[j + n - 2] as u16;
+        let mut q_hat = (u_jn * b + u_jn_1) / v_n_1;
+        let mut r_hat = (u_jn * b + u_jn_1) % v_n_1;
+        while q_hat >= b || q_hat * v_n_2 > b * r_hat + u_jn_2 {
+            q_hat -= 1;
+            r_hat += v_n_1;
+            if r_hat >= b {
+                break;
+            }
+        }
+        let u_t = &mut u.words[j..j + n + 1];
+        assert_eq!(u_t.len(), n + 1);
+        let mut i: usize = 0;
+        let mut k: u8 = 1;
+        let mut k_mul: u16 = 0;
+        while i < n + 1 {
+            let v_i = if i == n {
+                k_mul as u8
+            } else {
+                let t = (v.words[i] as u16) * q_hat + k_mul;
+                k_mul = t >> 8;
+                (t & 0x00ff) as u8
+            };
+            let u_i = u_t[i];
+            let w_i = u_i.wrapping_sub(v_i).wrapping_add(k).wrapping_add(u8::MAX);
+            k = (!(w_i > u_i)) as u8;
+            u_t[i] = w_i;
+            i += 1;
+        }
+        q[j] = q_hat as u8;
+        if k == 0 {
+            // There is an extra borrow
+            q[j] -= 1;
+            let mut i: usize = 0;
+            let mut k: u8 = 0;
+            while i < n + 1 {
+                let u_i = u_t[i];
+                let v_i = if i == n { 0 } else { v.words[i] };
+                let w_i = u_i.wrapping_add(v_i);
+                let k_prime = w_i < u_i.max(v_i);
+                let w_i_prime = w_i.wrapping_add(k);
+                k = (k_prime | (w_i_prime < w_i)) as u8;
+                u_t[i] = w_i_prime;
+                i += 1;
+            }
+        }
+    }
+    BigInt { words: q }
+}
+
 use std::cmp::Ordering;
 fn cmp_same_size(u: &[u8], v: &[u8]) -> Ordering {
     let m = u.len();
@@ -538,6 +620,43 @@ mod tests {
         let rhs = algorithm_m_rp(&u, &v);
 
         assert!(algorithm_eq(&lhs, &rhs));
+    }
+
+    #[test]
+    fn division_works() {
+        let u = BigInt::from_rtol(&[0xff, 0xff]);
+        let v = BigInt::from_rtol(&[0x02, 0x00]);
+        let w = algorithm_d(&u, &v);
+        assert_eq!(w.words[0], 0x7f);
+
+        let u = BigInt::from_rtol(&[0xff, 0xff]);
+        let v = BigInt::from_rtol(&[0x01, 0x23]);
+        let w = algorithm_d(&u, &v);
+        assert_eq!(w.words[0], 0xe1);
+
+        let u = BigInt::from_rtol(&[0xba, 0xde]);
+        let v = BigInt::from_rtol(&[0x01, 0x23]);
+        let w = algorithm_d(&u, &v);
+        assert_eq!(w.words[0], 0xa4);
+
+        let u = BigInt::from_rtol(&[0xff, 0xff]);
+        let v = BigInt::from_rtol(&[0x01, 0x01]);
+        let w = algorithm_d(&u, &v);
+        assert_eq!(w.words[0], 0xff);
+
+        let u = BigInt::from_rtol(&[0xc0, 0xca, 0xba, 0xde]);
+        let v = BigInt::from_rtol(&[0x01, 0x23]);
+        let w = algorithm_d(&u, &v);
+        assert_eq!(w.words[0], 0x98);
+        assert_eq!(w.words[1], 0x9a);
+        assert_eq!(w.words[2], 0xa9);
+
+        let u = BigInt::from_rtol(&[0xc0, 0xca, 0xba, 0xde]);
+        let v = BigInt::from_rtol(&[0x12, 0x34]);
+        let w = algorithm_d(&u, &v);
+        assert_eq!(w.words[0], 0x55);
+        assert_eq!(w.words[1], 0x97);
+        assert_eq!(w.words[2], 0x0a);
     }
 
     #[test]
