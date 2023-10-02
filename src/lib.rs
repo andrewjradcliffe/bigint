@@ -1,6 +1,7 @@
 use std::fmt::Write;
 
 pub mod parser;
+pub mod u4;
 
 #[derive(Debug, Clone)]
 pub struct BigInt {
