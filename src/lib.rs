@@ -657,6 +657,35 @@ mod tests {
         assert_eq!(w.words[0], 0x55);
         assert_eq!(w.words[1], 0x97);
         assert_eq!(w.words[2], 0x0a);
+
+        let u = BigInt::from_rtol(&[0x12, 0x34]);
+        let v = BigInt::from_rtol(&[0xff, 0xff]);
+        let w = algorithm_d(&u, &v);
+        assert_eq!(w.words[0], 0x00);
+
+        let u = BigInt::from_rtol(&[0x12, 0x34]);
+        let v = BigInt::from_rtol(&[0xff, 0xff]);
+        let w = algorithm_d(&u, &v);
+        assert_eq!(w.words[0], 0x00);
+
+        let u = BigInt::from_rtol(&[0x00, 0x00, 0x34]);
+        let v = BigInt::from_rtol(&[0x01, 0x0f]);
+        let w = algorithm_d(&u, &v);
+        assert_eq!(w.words[0], 0x00);
+        assert_eq!(w.words[1], 0x00);
+
+        let u = BigInt::from_rtol(&[0x00, 0x00]);
+        let v = BigInt::from_rtol(&[0x01, 0x00]);
+        let w = algorithm_d(&u, &v);
+        assert_eq!(w.words[0], 0x00);
+
+        let u = BigInt::from_rtol(&[0xff, 0xff]);
+        let v = BigInt::from_rtol(&[0xff, 0xff, 0xff, 0xff]);
+        let p = algorithm_m(&u, &v);
+        let q_u = algorithm_d(&p, &u);
+        assert!(algorithm_eq(&q_u, &v));
+        let q_v = algorithm_d(&p, &v);
+        assert!(algorithm_eq(&q_v, &u));
     }
 
     #[test]
