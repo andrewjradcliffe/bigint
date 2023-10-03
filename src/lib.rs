@@ -209,6 +209,63 @@ impl BigInt {
         s
     }
 }
+impl From<u8> for BigInt {
+    fn from(bits: u8) -> Self {
+        Self { words: vec![bits] }
+    }
+}
+impl From<u16> for BigInt {
+    fn from(bits: u16) -> Self {
+        let w0 = bits as u8;
+        let w1 = (bits >> 8) as u8;
+        Self::from_rtol(&[w1, w0])
+    }
+}
+impl From<u32> for BigInt {
+    fn from(bits: u32) -> Self {
+        let w0 = bits as u8;
+        let w1 = (bits >> 8) as u8;
+        let w2 = (bits >> 16) as u8;
+        let w3 = (bits >> 24) as u8;
+        Self::from_rtol(&[w3, w2, w1, w0])
+    }
+}
+impl From<u64> for BigInt {
+    fn from(bits: u64) -> Self {
+        let w0 = bits as u8;
+        let w1 = (bits >> 8) as u8;
+        let w2 = (bits >> 16) as u8;
+        let w3 = (bits >> 24) as u8;
+        let w4 = (bits >> 32) as u8;
+        let w5 = (bits >> 40) as u8;
+        let w6 = (bits >> 48) as u8;
+        let w7 = (bits >> 56) as u8;
+        Self::from_rtol(&[w7, w6, w5, w4, w3, w2, w1, w0])
+    }
+}
+impl From<u128> for BigInt {
+    fn from(bits: u128) -> Self {
+        let w0 = bits as u8;
+        let w1 = (bits >> 8) as u8;
+        let w2 = (bits >> 16) as u8;
+        let w3 = (bits >> 24) as u8;
+        let w4 = (bits >> 32) as u8;
+        let w5 = (bits >> 40) as u8;
+        let w6 = (bits >> 48) as u8;
+        let w7 = (bits >> 56) as u8;
+        let w8 = (bits >> 64) as u8;
+        let w9 = (bits >> 72) as u8;
+        let w10 = (bits >> 80) as u8;
+        let w11 = (bits >> 88) as u8;
+        let w12 = (bits >> 96) as u8;
+        let w13 = (bits >> 104) as u8;
+        let w14 = (bits >> 112) as u8;
+        let w15 = (bits >> 120) as u8;
+        Self::from_rtol(&[
+            w15, w14, w13, w12, w11, w10, w9, w8, w7, w6, w5, w4, w3, w2, w1, w0,
+        ])
+    }
+}
 
 pub fn algorithm_a(u: &BigInt, v: &BigInt) -> BigInt {
     let n = u.words.len();
@@ -1266,4 +1323,211 @@ mod tests {
         let u = BigInt::try_from_hex(s);
         assert!(matches!(u, Err(ZeroDigits)));
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct SignMag {
+    sign: bool,
+    mag: BigInt,
+}
+impl SignMag {
+    pub fn is_negative(&self) -> bool {
+        self.sign
+    }
+    pub fn is_positive(&self) -> bool {
+        !self.sign
+    }
+    pub fn is_zero(&self) -> bool {
+        self.mag.is_zero()
+    }
+    pub fn is_even(&self) -> bool {
+        self.mag.is_even()
+    }
+    pub fn is_odd(&self) -> bool {
+        self.mag.is_odd()
+    }
+}
+
+use std::ops::Add;
+impl Add for &SignMag {
+    type Output = SignMag;
+    fn add(self, other: Self) -> SignMag {
+        let lhs = self;
+        let rhs = other;
+        if lhs.sign & rhs.sign {
+            SignMag {
+                sign: true,
+                mag: algorithm_a_sz(&lhs.mag, &rhs.mag),
+            }
+        } else if lhs.sign & !rhs.sign {
+            let (mut mag, k) = algorithm_s_modular_varsize(&rhs.mag, &lhs.mag);
+            let sign = if k == 0 {
+                mag.modular_negate();
+                if mag.is_zero() {
+                    false
+                } else {
+                    true
+                }
+            } else {
+                false
+            };
+            SignMag { sign, mag }
+        } else if !lhs.sign & rhs.sign {
+            let (mut mag, k) = algorithm_s_modular_varsize(&lhs.mag, &rhs.mag);
+            let sign = if k == 0 {
+                mag.modular_negate();
+                if mag.is_zero() {
+                    false
+                } else {
+                    true
+                }
+            } else {
+                false
+            };
+            SignMag { sign, mag }
+        } else {
+            SignMag {
+                sign: false,
+                mag: algorithm_a_sz(&lhs.mag, &rhs.mag),
+            }
+        }
+    }
+}
+use std::ops::Sub;
+impl Sub for &SignMag {
+    type Output = SignMag;
+    fn sub(self, other: Self) -> SignMag {
+        let lhs = self;
+        let rhs = other;
+        if lhs.sign & rhs.sign {
+            let (mut mag, k) = algorithm_s_modular_varsize(&rhs.mag, &lhs.mag);
+            let sign = if k == 0 {
+                mag.modular_negate();
+                if mag.is_zero() {
+                    false
+                } else {
+                    true
+                }
+            } else {
+                false
+            };
+            SignMag { sign, mag }
+        } else if !lhs.sign & rhs.sign {
+            let mag = algorithm_a_sz(&lhs.mag, &rhs.mag);
+            SignMag { sign: false, mag }
+        } else if lhs.sign & !rhs.sign {
+            let mag = algorithm_a_sz(&lhs.mag, &rhs.mag);
+            SignMag { sign: true, mag }
+        } else {
+            let (mut mag, k) = algorithm_s_modular_varsize(&lhs.mag, &rhs.mag);
+            let sign = if k == 0 {
+                mag.modular_negate();
+                if mag.is_zero() {
+                    false
+                } else {
+                    true
+                }
+            } else {
+                false
+            };
+            SignMag { sign, mag }
+        }
+    }
+}
+
+impl From<BigInt> for SignMag {
+    fn from(mag: BigInt) -> Self {
+        Self { sign: false, mag }
+    }
+}
+macro_rules! impl_from_uN {
+    { $uN:ident } => {
+        impl From<$uN> for SignMag {
+            fn from(bits: $uN) -> Self {
+                Self {
+                    sign: false,
+                    mag: BigInt::from(bits),
+                }
+            }
+        }
+    }
+}
+impl_from_uN! { u8 }
+impl_from_uN! { u16 }
+impl_from_uN! { u32 }
+impl_from_uN! { u64 }
+impl_from_uN! { u128 }
+
+use std::ops::Mul;
+impl Mul for &SignMag {
+    type Output = SignMag;
+    fn mul(self, other: Self) -> SignMag {
+        let mag = algorithm_m(&self.mag, &other.mag);
+        let sign = self.sign ^ other.sign;
+        SignMag { sign, mag }
+    }
+}
+use std::ops::Div;
+impl Div for &SignMag {
+    type Output = SignMag;
+    fn div(self, other: Self) -> SignMag {
+        let mag = algorithm_d(&self.mag, &other.mag);
+        let sign = self.sign ^ other.sign;
+        SignMag { sign, mag }
+    }
+}
+
+#[cfg(test)]
+mod signmag_tests {
+    use super::*;
+
+    #[test]
+    fn add_works() {
+        let u = SignMag::from(0x01ff_u16);
+        let v = SignMag::from(0x01_u8);
+        let w = &u + &v;
+        assert_eq!(w.mag.words[0], 0x00);
+        assert_eq!(w.mag.words[1], 0x02);
+    }
+
+    #[test]
+    fn sub_works() {
+        let u = SignMag::from(0x01ff_u16);
+        let v = SignMag::from(0x01_u8);
+        let w = &u - &v;
+        assert_eq!(w.mag.words[0], 0xfe);
+        assert_eq!(w.mag.words[1], 0x01);
+
+        let u = SignMag::from(0x01ff_u16);
+        let v = u.clone();
+        let w = &u - &v;
+        assert_eq!(w.mag.words[0], 0x00);
+        assert_eq!(w.mag.words[1], 0x00);
+
+        let v = SignMag::from(0x03ff_u16);
+
+        let w = &u - &v;
+        assert_eq!(w.mag.words[0], 0x00);
+        assert_eq!(w.mag.words[1], 0x02);
+        assert_eq!(w.sign, true);
+    }
+
+    #[test]
+    fn mul_works() {
+        let u = SignMag::from(BigInt::from_rtol(&[0xff]));
+        let v = SignMag::from(BigInt::from_rtol(&[0xff]));
+        let w = &u * &v;
+        assert_eq!(w.mag.words[0], 0x01);
+        assert_eq!(w.mag.words[1], 0xfe);
+    }
+
+    // #[test]
+    // fn div_works() {
+    //     let u = SignMag::from(BigInt::from_rtol(&[0xff]));
+    //     let v = SignMag::from(BigInt::from_rtol(&[0xff, 0x00]));
+    //     let w = &u * &v;
+    //     let q = &w / &v;
+    //     assert_eq!(q.mag.words[0], 0x00);
+    //     assert_eq!(q.mag.words[1], 0x00);
+    // }
 }
