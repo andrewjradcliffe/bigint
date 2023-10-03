@@ -267,6 +267,23 @@ impl From<u128> for BigInt {
     }
 }
 
+impl Ord for BigInt {
+    fn cmp(&self, other: &Self) -> Ordering {
+        algorithm_cmp(self, other)
+    }
+}
+impl PartialOrd for BigInt {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl PartialEq for BigInt {
+    fn eq(&self, other: &Self) -> bool {
+        algorithm_eq(self, other)
+    }
+}
+impl Eq for BigInt {}
+
 pub fn algorithm_a(u: &BigInt, v: &BigInt) -> BigInt {
     let n = u.words.len();
     assert_eq!(n, v.words.len());
@@ -849,6 +866,12 @@ mod tests {
         let u = BigInt::from_rtol(&[0xff, 0x01]);
         let v = BigInt::from_rtol(&[0x02, 0xff]);
         assert!(!algorithm_lt(&u, &v));
+
+        let u = BigInt::from(0x1230_u16);
+        let v = BigInt::from(0x1201_u16);
+        assert!(v < u);
+        assert!(v <= u);
+        assert!(!(u < v));
     }
 
     #[test]
@@ -870,6 +893,12 @@ mod tests {
         let u = BigInt::from_rtol(&[0xff, 0x01]);
         let v = BigInt::from_rtol(&[0x02, 0xff]);
         assert!(!algorithm_gt(&v, &u));
+
+        let u = BigInt::from(0x1230_u16);
+        let v = BigInt::from(0x1201_u16);
+        assert!(u > v);
+        assert!(u >= v);
+        assert!(!(u < v));
     }
 
     #[test]
@@ -885,6 +914,13 @@ mod tests {
         let u = BigInt::from_rtol(&[0x00, 0x00, 0x00, 0x1f]);
         let v = BigInt::from_rtol(&[0x1f, 0x00]);
         assert!(!algorithm_eq(&u, &v));
+
+        let u = BigInt::from(0x1234_u16);
+        let v = u.clone();
+        assert_eq!(u, v);
+
+        let v = BigInt::from(0x00_u8);
+        assert_ne!(u, v);
     }
 
     #[test]
