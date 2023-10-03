@@ -1528,6 +1528,28 @@ impl_from_uN! { u32 }
 impl_from_uN! { u64 }
 impl_from_uN! { u128 }
 
+macro_rules! impl_from_iN {
+    { $iN:ident $uN:ident } => {
+        impl From<$iN> for SignMag {
+            fn from(i: $iN) -> Self {
+                let sign = i < 0;
+                let u = i as $uN;
+                let bits = ((!sign) as $uN) * u + (sign as $uN) * (u.wrapping_neg());
+                Self {
+                    sign,
+                    mag: BigInt::from(bits),
+                }
+            }
+        }
+    }
+}
+
+impl_from_iN! { i8 u8 }
+impl_from_iN! { i16 u16 }
+impl_from_iN! { i32 u32 }
+impl_from_iN! { i64 u64 }
+impl_from_iN! { i128 u128 }
+
 use std::ops::Mul;
 impl Mul for &SignMag {
     type Output = SignMag;
@@ -1621,6 +1643,67 @@ mod signmag_tests {
     use super::*;
 
     #[test]
+    fn from_works() {
+        let u = SignMag::from(-128_i8);
+        let v = SignMag {
+            sign: true,
+            mag: BigInt::from(128_u8),
+        };
+        assert_eq!(u, v);
+
+        let u = SignMag::from(-1_i8);
+        let v = SignMag {
+            sign: true,
+            mag: BigInt::from(1_u8),
+        };
+        assert_eq!(u, v);
+
+        let u = SignMag::from(127_i8);
+        let v = SignMag {
+            sign: false,
+            mag: BigInt::from(127_u8),
+        };
+        assert_eq!(u, v);
+        macro_rules! from_checks {
+            { $iN:ident $uN:ident } => {
+                {
+                    let x = $iN::MIN;
+                    let y = x as $uN;
+                    let u = SignMag::from(x);
+                    let v = SignMag {
+                        sign: true,
+                        mag: BigInt::from(y),
+                    };
+                    assert_eq!(u, v);
+
+                    let x: $iN = -1;
+                    let y: $uN = 1;
+                    let u = SignMag::from(x);
+                    let v = SignMag {
+                        sign: true,
+                        mag: BigInt::from(y),
+                    };
+                    assert_eq!(u, v);
+
+                    let x = $iN::MAX;
+                    let y = x as $uN;
+                    let u = SignMag::from(x);
+                    let v = SignMag {
+                        sign: false,
+                        mag: BigInt::from(y),
+                    };
+                    assert_eq!(u, v);
+                }
+            }
+        }
+        // from_checks! { i8 u8 }
+        from_checks! { i16 u16 }
+        from_checks! { i32 u32 }
+        from_checks! { i64 u64 }
+        from_checks! { i128 u128 }
+    }
+
+    #[test]
     fn neg_works() {
         let u = SignMag::from(0xff_u8);
         let v = -&u;
@@ -1678,8 +1761,8 @@ mod signmag_tests {
 
     #[test]
     fn mul_works() {
-        let u = SignMag::from(BigInt::from_rtol(&[0xff]));
-        let v = SignMag::from(BigInt::from_rtol(&[0xff]));
+        let u = SignMag::from(0xff_u8);
+        let v = SignMag::from(0xff_u8);
         let w = &u * &v;
         assert_eq!(w.mag.words[0], 0x01);
         assert_eq!(w.mag.words[1], 0xfe);
@@ -1687,11 +1770,10 @@ mod signmag_tests {
 
     // #[test]
     // fn div_works() {
-    //     let u = SignMag::from(BigInt::from_rtol(&[0xff]));
-    //     let v = SignMag::from(BigInt::from_rtol(&[0xff, 0x00]));
+    //     let u = SignMag::from(0xffff_u16);
+    //     let v = SignMag::from(0xff00_u16);
     //     let w = &u * &v;
     //     let q = &w / &v;
-    //     assert_eq!(q.mag.words[0], 0x00);
-    //     assert_eq!(q.mag.words[1], 0x00);
+    //     assert_eq!(&u / &v, SignMag::from(0x0101_u16));
     // }
 }
