@@ -1674,7 +1674,11 @@ impl Mul for &SignMag {
     type Output = SignMag;
     fn mul(self, other: Self) -> SignMag {
         let mag = algorithm_m(&self.mag, &other.mag);
-        let sign = self.sign ^ other.sign;
+        let sign = if mag.is_zero() {
+            false
+        } else {
+            self.sign ^ other.sign
+        };
         SignMag { sign, mag }
     }
 }
@@ -1683,8 +1687,28 @@ impl Div for &SignMag {
     type Output = SignMag;
     fn div(self, other: Self) -> SignMag {
         let mag = algorithm_d(&self.mag, &other.mag);
-        let sign = self.sign ^ other.sign;
+        let sign = if mag.is_zero() {
+            false
+        } else {
+            self.sign ^ other.sign
+        };
         SignMag { sign, mag }
+    }
+}
+use std::ops::Rem;
+impl Rem for &SignMag {
+    type Output = SignMag;
+    fn rem(self, other: Self) -> SignMag {
+        if !self.sign & !other.sign {
+            let (_, r) = algorithm_dr(&self.mag, &other.mag);
+            SignMag {
+                sign: false,
+                mag: r,
+            }
+        } else {
+            // This could be done more efficiently.
+            self - &(&(self / other) * other)
+        }
     }
 }
 use std::ops::Neg;
@@ -1854,6 +1878,29 @@ mod signmag_tests {
         let u = SignMag::from(0x01_u8);
         let v = SignMag::from(0x02_u8);
         assert_eq!(u, &v + &(-&u));
+
+        for n in 1_u64..63_u64 {
+            let a = (1_u64 << n) as u64;
+            for a in (a - 1)..=(a + 1) {
+                let u = SignMag::from(a);
+                for b in 1_u64..4_u64 {
+                    let b = b * n + n;
+                    let v = SignMag::from(b);
+                    let s = &u + &v;
+                    assert_eq!(s, SignMag::from(a + b));
+                }
+            }
+            let a = a.wrapping_neg() as i64;
+            for a in (a - 1)..=(a + 1) {
+                let u = SignMag::from(a);
+                for b in 1_i64..4_i64 {
+                    let b = b * n as i64 + n as i64;
+                    let v = SignMag::from(b);
+                    let s = &u + &v;
+                    assert_eq!(s, SignMag::from(a + b));
+                }
+            }
+        }
     }
 
     #[test]
@@ -1930,6 +1977,20 @@ mod signmag_tests {
         let w = &u - &v;
         let rhs = SignMag::from(32766_u16);
         assert_eq!(w, rhs);
+
+        for n in 1_u64..63_u64 {
+            let a = 1_u64 << n;
+            let a = a.wrapping_neg() as i64;
+            for a in (a - 1)..=(a + 1) {
+                let u = SignMag::from(a);
+                for b in 1_i64..4_i64 {
+                    let b = b * n as i64 + n as i64;
+                    let v = SignMag::from(b);
+                    let d = &u - &v;
+                    assert_eq!(d, SignMag::from(a - b));
+                }
+            }
+        }
     }
 
     #[test]
@@ -1939,14 +2000,88 @@ mod signmag_tests {
         let w = &u * &v;
         assert_eq!(w.mag.words[0], 0x01);
         assert_eq!(w.mag.words[1], 0xfe);
+
+        for n in 1_u64..63_u64 {
+            let a = (1_u64 << n) as u128;
+            for a in (a - 1)..=(a + 1) {
+                let u = SignMag::from(a);
+                for b in 1_u128..4_u128 {
+                    let b = b * n as u128 + n as u128;
+                    let v = SignMag::from(b);
+                    let p = &u * &v;
+                    assert_eq!(p, SignMag::from(a * b));
+                }
+            }
+            let a = a.wrapping_neg() as i128;
+            for a in (a - 1)..=(a + 1) {
+                let u = SignMag::from(a);
+                for b in 1_i128..4_i128 {
+                    let b = b * n as i128 + n as i128;
+                    let v = SignMag::from(b);
+                    let p = &u * &v;
+                    assert_eq!(p, SignMag::from(a * b));
+                }
+            }
+        }
     }
 
     #[test]
     fn div_works() {
         let u = SignMag::from(0xffff_u16);
         let v = SignMag::from(0xff00_u16);
-        // let w = &u * &v;
-        // let q = &w / &v;
         assert_eq!(&u / &v, SignMag::from(0x0001_u16));
+
+        for n in 1_u64..63_u64 {
+            let a = 1_u64 << n;
+            for a in (a - 1)..=(a + 1) {
+                let u = SignMag::from(a);
+                for b in 1_u64..4_u64 {
+                    let b = b * n + n;
+                    let v = SignMag::from(b);
+                    let q = &u / &v;
+                    assert_eq!(q, SignMag::from(a / b));
+                }
+            }
+            let a = a.wrapping_neg() as i64;
+            for a in (a - 1)..=(a + 1) {
+                let u = SignMag::from(a);
+                for b in 1_i64..4_i64 {
+                    let b = b * n as i64 + n as i64;
+                    let v = SignMag::from(b);
+                    let q = &u / &v;
+                    assert_eq!(q, SignMag::from(a / b));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn rem_works() {
+        let u = SignMag::from(0xffff_u16);
+        let v = SignMag::from(0xff00_u16);
+        assert_eq!(&u % &v, SignMag::from(0x00ff_u16));
+
+        for n in 1_u64..63_u64 {
+            let a = 1_u64 << n;
+            for a in (a - 1)..=(a + 1) {
+                let u = SignMag::from(a);
+                for b in 1_u64..4_u64 {
+                    let b = b * n + n;
+                    let v = SignMag::from(b);
+                    let r = &u % &v;
+                    assert_eq!(r, SignMag::from(a % b));
+                }
+            }
+            let a = a.wrapping_neg() as i64;
+            for a in (a - 1)..=(a + 1) {
+                let u = SignMag::from(a);
+                for b in 1_i64..4_i64 {
+                    let b = b * n as i64 + n as i64;
+                    let v = SignMag::from(b);
+                    let r = &u % &v;
+                    assert_eq!(r, SignMag::from(a % b));
+                }
+            }
+        }
     }
 }
