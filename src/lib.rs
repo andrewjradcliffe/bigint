@@ -373,43 +373,6 @@ pub fn algorithm_s(u: &BigInt, v: &BigInt) -> BigInt {
     }
     BigInt { words: w }
 }
-
-pub fn algorithm_s_modular(u: &BigInt, v: &BigInt) -> (BigInt, u8) {
-    // let n = u.words.len();
-    // assert_eq!(n, v.words.len());
-
-    // let mut w: Vec<u8> = Vec::with_capacity(n);
-    // w.resize(n, 0);
-    // let mut j: usize = 0;
-    // let mut k: u8 = 1;
-    // while j < n {
-    //     let u_j = u.words[j];
-    //     let w_j = u_j
-    //         .wrapping_sub(v.words[j])
-    //         .wrapping_add(k)
-    //         .wrapping_add(u8::MAX);
-    //     k = (!(w_j > u_j)) as u8;
-    //     // CASE: if (u_j - v_j) + (b - 1) = 0 and k = 0
-    //     // let t = u_j.wrapping_sub(v.words[j]).wrapping_add(u8::MAX);
-    //     // if t == 0 && k == 0 {
-    //     //     w[j] = t;
-    //     //     k = (!(t > u_j)) as u8;
-    //     // } else {
-    //     //     let w_j = t.wrapping_add(k);
-    //     //     k = (!(w_j > u_j)) as u8;
-    //     //     w[j] = w_j;
-    //     // }
-    //     // let t = u_j.wrapping_sub(v.words[j]);
-    //     // let w_j = t.wrapping_add(k).wrapping_add(u8::MAX);
-    //     // k = ((!(t > u_j)) | (!(w_j > u_j))) as u8;
-    //     w[j] = w_j;
-    //     j += 1;
-    // }
-    // (BigInt { words: w }, k)
-    let mut v = v.clone();
-    v.modular_negate();
-    algorithm_a_varsize(u, &v)
-}
 pub fn algorithm_s_modular_varsize(u: &BigInt, v: &BigInt) -> (BigInt, u8) {
     let mut v = v.clone();
     let m = u.words.len();
@@ -1194,7 +1157,7 @@ mod tests {
     fn modular_sub_works() {
         let u = BigInt::from_rtol(&[0x00, 0x00, 0x00]);
         let v = BigInt::from_rtol(&[0x00, 0x00, 0x01]);
-        let (mut w, k) = algorithm_s_modular(&u, &v);
+        let (mut w, k) = algorithm_s_modular_varsize(&u, &v);
         assert_eq!(w.words[0], 0xff);
         assert_eq!(w.words[1], 0xff);
         assert_eq!(w.words[2], 0xff);
@@ -1207,7 +1170,7 @@ mod tests {
 
         let u = BigInt::from_rtol(&[0x00, 0x05]);
         let v = BigInt::from_rtol(&[0x00, 0x0f]);
-        let (mut w, k) = algorithm_s_modular(&u, &v);
+        let (mut w, k) = algorithm_s_modular_varsize(&u, &v);
         assert_eq!(w.words[0], 0xf6);
         assert_eq!(w.words[1], 0xff);
         assert_eq!(k, 0);
@@ -1218,7 +1181,7 @@ mod tests {
 
         let u = BigInt::from_rtol(&[0x00, 0x05]);
         let v = BigInt::from_rtol(&[0x01, 0x00]);
-        let (mut w, k) = algorithm_s_modular(&u, &v);
+        let (mut w, k) = algorithm_s_modular_varsize(&u, &v);
         assert_eq!(w.words[0], 0x05);
         assert_eq!(w.words[1], 0xff);
         assert_eq!(k, 0);
@@ -1229,16 +1192,14 @@ mod tests {
 
         let u = BigInt::from_rtol(&[0x01, 0x00]);
         let v = BigInt::from_rtol(&[0x00, 0x05]);
-        let (w, k) = algorithm_s_modular(&u, &v);
+        let (w, k) = algorithm_s_modular_varsize(&u, &v);
         assert_eq!(w.words[0], 0xfb);
         assert_eq!(w.words[1], 0x00);
         assert_eq!(k, 1);
 
         let u = BigInt::from_rtol(&[0x01, 0x01, 0x01, 0x00]);
         let v = BigInt::from_rtol(&[0x00, 0x00, 0xff, 0xff]);
-        // v.modular_negate();
-        // let w = algorithm_a_modular(&u, &v);
-        let (w, _) = algorithm_s_modular(&u, &v);
+        let (w, _) = algorithm_s_modular_varsize(&u, &v);
         assert_eq!(w.words[0], 0x01);
         assert_eq!(w.words[1], 0x01);
         assert_eq!(w.words[2], 0x00);
@@ -1246,7 +1207,7 @@ mod tests {
 
         let u = BigInt::from_rtol(&[0x01, 0x01, 0x00, 0x00]);
         let v = BigInt::from_rtol(&[0x00, 0x00, 0xff, 0xff]);
-        let (w, _) = algorithm_s_modular(&u, &v);
+        let (w, _) = algorithm_s_modular_varsize(&u, &v);
         assert_eq!(w.words[0], 0x01);
         assert_eq!(w.words[1], 0x00);
         assert_eq!(w.words[2], 0x00);
@@ -1254,7 +1215,7 @@ mod tests {
 
         let u = BigInt::from_rtol(&[0x01, 0x01, 0x00, 0x01]);
         let v = BigInt::from_rtol(&[0x00, 0x00, 0xff, 0xff]);
-        let (w, _) = algorithm_s_modular(&u, &v);
+        let (w, _) = algorithm_s_modular_varsize(&u, &v);
         assert_eq!(w.words[0], 0x02);
         assert_eq!(w.words[1], 0x00);
         assert_eq!(w.words[2], 0x00);
