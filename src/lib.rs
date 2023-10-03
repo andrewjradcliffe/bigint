@@ -284,29 +284,6 @@ impl PartialEq for BigInt {
 }
 impl Eq for BigInt {}
 
-pub fn algorithm_a(u: &BigInt, v: &BigInt) -> BigInt {
-    let n = u.words.len();
-    assert_eq!(n, v.words.len());
-
-    let mut w: Vec<u8> = Vec::with_capacity(n + 1);
-    let mut j: usize = 0;
-    let mut k: u8 = 0;
-    while j < n {
-        let u_j = u.words[j];
-        let v_j = v.words[j];
-        let w_j = u_j.wrapping_add(v_j);
-        let k_prime = w_j < u_j.max(v_j);
-        let w_j_prime = w_j.wrapping_add(k);
-        k = (k_prime | (w_j_prime < w_j)) as u8;
-        w.push(w_j_prime);
-        j += 1;
-    }
-    if k != 0 {
-        w.push(k);
-    }
-    BigInt { words: w }
-}
-
 pub fn algorithm_a_varsize(u: &BigInt, v: &BigInt) -> (BigInt, u8) {
     let m = u.words.len();
     let n = v.words.len();
@@ -337,7 +314,7 @@ pub fn algorithm_a_varsize(u: &BigInt, v: &BigInt) -> (BigInt, u8) {
     }
 }
 
-pub fn algorithm_a_sz(u: &BigInt, v: &BigInt) -> BigInt {
+pub fn algorithm_a(u: &BigInt, v: &BigInt) -> BigInt {
     let (mut w, k) = algorithm_a_varsize(u, v);
     if k != 0 {
         w.words.push(k)
@@ -618,7 +595,7 @@ pub fn algorithm_m_rp(u: &BigInt, v: &BigInt) -> BigInt {
                 b.double();
                 n.halve();
             } else {
-                let t = algorithm_a_sz(&a, &b);
+                let t = algorithm_a(&a, &b);
                 a = t;
                 n.decrement();
             }
@@ -646,14 +623,14 @@ mod tests {
     fn addition_varsize_works() {
         let u = BigInt::from_rtol(&[0x01]);
         let v = BigInt::from_rtol(&[0x00, 0x00, 0x00, 0x00, 0x01]);
-        let w = algorithm_a_sz(&u, &v);
+        let w = algorithm_a(&u, &v);
         assert_eq!(w.words.len(), 5);
         let rhs = BigInt::from_rtol(&[0x00, 0x00, 0x00, 0x00, 0x02]);
         assert!(algorithm_eq(&w, &rhs));
 
         let u = BigInt::from_rtol(&[0x01, 0x01, 0x01]);
         let v = BigInt::from_rtol(&[0x00, 0x00, 0xff, 0x00, 0x01]);
-        let w = algorithm_a_sz(&u, &v);
+        let w = algorithm_a(&u, &v);
 
         let lhs = BigInt::from_rtol(&[0x00, 0x00, 0x01, 0x01, 0x01]);
         let rhs = algorithm_a(&lhs, &v);
@@ -661,7 +638,7 @@ mod tests {
 
         let u = BigInt::from_rtol(&[0x0f, 0xf0, 0x01, 0x01, 0x01]);
         let v = BigInt::from_rtol(&[0x00, 0x00, 0xff, 0x00, 0x01]);
-        let w = algorithm_a_sz(&u, &v);
+        let w = algorithm_a(&u, &v);
 
         let lhs = BigInt::from_rtol(&[0x0f, 0xf0, 0x01, 0x01, 0x01]);
         let rhs = algorithm_a(&lhs, &v);
@@ -672,7 +649,7 @@ mod tests {
                 let u = BigInt::from(a);
                 let v = BigInt::from(b);
                 let ab = (a as u16) + (b as u16);
-                assert_eq!(algorithm_a_sz(&u, &v), BigInt::from(ab));
+                assert_eq!(algorithm_a(&u, &v), BigInt::from(ab));
             }
         }
     }
@@ -1118,7 +1095,7 @@ mod tests {
         let u = BigInt::from_rtol(&[0x01]);
         let mut v = BigInt::from_rtol(&[0x00, 0x07]);
         v.modular_negate();
-        let w = algorithm_a_sz(&u, &v);
+        let w = algorithm_a(&u, &v);
         assert!(algorithm_eq(&w, &BigInt::from_rtol(&[0xff, 0xfa])));
     }
 
@@ -1394,7 +1371,7 @@ impl Add for &SignMag {
         if lhs.sign & rhs.sign {
             SignMag {
                 sign: true,
-                mag: algorithm_a_sz(&lhs.mag, &rhs.mag),
+                mag: algorithm_a(&lhs.mag, &rhs.mag),
             }
         } else if lhs.sign & !rhs.sign {
             let (mut mag, k) = algorithm_s_modular_varsize(&rhs.mag, &lhs.mag);
@@ -1425,7 +1402,7 @@ impl Add for &SignMag {
         } else {
             SignMag {
                 sign: false,
-                mag: algorithm_a_sz(&lhs.mag, &rhs.mag),
+                mag: algorithm_a(&lhs.mag, &rhs.mag),
             }
         }
     }
@@ -1450,10 +1427,10 @@ impl Sub for &SignMag {
             };
             SignMag { sign, mag }
         } else if !lhs.sign & rhs.sign {
-            let mag = algorithm_a_sz(&lhs.mag, &rhs.mag);
+            let mag = algorithm_a(&lhs.mag, &rhs.mag);
             SignMag { sign: false, mag }
         } else if lhs.sign & !rhs.sign {
-            let mag = algorithm_a_sz(&lhs.mag, &rhs.mag);
+            let mag = algorithm_a(&lhs.mag, &rhs.mag);
             SignMag { sign: true, mag }
         } else {
             let (mut mag, k) = algorithm_s_modular_varsize(&lhs.mag, &rhs.mag);
