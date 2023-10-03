@@ -807,6 +807,10 @@ mod tests {
                 assert_eq!(algorithm_m(&u, &v), BigInt::from(ab));
             }
         }
+
+        let u = BigInt::from(0xffff_u16);
+        let v = BigInt::from(0xff00_u16);
+        assert_eq!(algorithm_m(&u, &v), BigInt::from(0xfeff0100_u32));
     }
 
     #[test]
@@ -884,6 +888,112 @@ mod tests {
         assert!(algorithm_eq(&q_u, &v));
         let q_v = algorithm_d(&p, &v);
         assert!(algorithm_eq(&q_v, &u));
+
+        let u = BigInt::from(0xffff_u16);
+        let v = BigInt::from(0xff00_u16);
+        assert_eq!(algorithm_d(&u, &v), BigInt::from(0x0001_u16));
+        let p = algorithm_m(&u, &v);
+        assert_eq!(p, BigInt::from(0xfeff0100_u32));
+
+        let q_v = algorithm_d(&p, &v);
+        assert_eq!(q_v, BigInt::from(0xffff_u16));
+
+        let q_u = algorithm_d(&p, &u);
+        assert_eq!(q_u, BigInt::from(0xff00_u16));
+
+        let u = BigInt::from(0xffff_u16);
+        let v = BigInt::from(0x00ff_u16);
+        let p = algorithm_m(&u, &v);
+        assert_eq!(algorithm_d(&p, &u), v);
+    }
+
+    #[test]
+    fn division_single_works() {
+        let u = BigInt::from(1000_u16);
+        let v = BigInt::from(8_u8);
+        let (q, r) = algorithm_d_single(&u, &v);
+        assert_eq!(q, BigInt::from(125_u8));
+        assert_eq!(r, BigInt::from(0_u8));
+
+        let v = BigInt::from(9_u8);
+        let (q, r) = algorithm_d_single(&u, &v);
+        assert_eq!(q, BigInt::from(111_u8));
+        assert_eq!(r, BigInt::from(1_u8));
+
+        let u = BigInt::from(1_u8);
+        let v = BigInt::from(2_u8);
+        let (q, r) = algorithm_d_single(&u, &v);
+        assert_eq!(q, BigInt::from(0_u8));
+        assert_eq!(r, BigInt::from(1_u8));
+
+        for a in 0x01_u8..=0xff_u8 {
+            for b in 0x01_u8..=0xff_u8 {
+                let u = BigInt::from(a);
+                let v = BigInt::from(b);
+                let (q, r) = algorithm_d_single(&u, &v);
+                assert_eq!(q, BigInt::from(a / b));
+                assert_eq!(r, BigInt::from(a % b));
+            }
+        }
+        // Long-running, but useful test
+        // for a in 0x0001_u16..=0xffff_u16 {
+        //     for b in 0x01_u8..=0xff_u8 {
+        //         let u = BigInt::from(a);
+        //         let v = BigInt::from(b);
+        //         let (q, r) = algorithm_d_single(&u, &v);
+        //         assert_eq!(q, BigInt::from(a / (b as u16)));
+        //         assert_eq!(r, BigInt::from(a % (b as u16)));
+        //     }
+        // }
+
+        let u = BigInt::from(1_000_000_u32);
+        let v = BigInt::from(2_u8);
+        let (q, r) = algorithm_d_single(&u, &v);
+        assert_eq!(q, BigInt::from(500_000_u32));
+        assert_eq!(r, BigInt::from(0_u8));
+
+        // A faster to way interrogate start/end behavior.
+        for n in 0_u64..64_u64 {
+            let a = 1_u64 << n;
+            for a in (a - 1)..=(a + 1) {
+                let u = BigInt::from(a);
+                for b in 1_u64..4_u64 {
+                    let v = BigInt::from(b as u8);
+                    let (q, r) = algorithm_d_single(&u, &v);
+                    assert_eq!(q, BigInt::from(a / b));
+                    assert_eq!(r, BigInt::from(a % b));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn divrem_works() {
+        let u = BigInt::from(0xfffe_u16);
+        let v = BigInt::from(0x0fff_u16);
+        let (q, r) = algorithm_dr(&u, &v);
+        assert_eq!(q, BigInt::from(0x0010_u16));
+        assert_eq!(r, BigInt::from(0x000e_u16));
+
+        let u = BigInt::from(0xfffe_u16);
+        let v = BigInt::from(0xff00_u16);
+        let (q, r) = algorithm_dr(&u, &v);
+        assert_eq!(q, BigInt::from(0x0001_u16));
+        assert_eq!(r, BigInt::from(0x00fe_u16));
+
+        for n in 1_u64..64_u64 {
+            let a = 1_u64 << n;
+            for a in (a - 1)..=(a + 1) {
+                let u = BigInt::from(a);
+                for b in 1_u64..4_u64 {
+                    let b = b * n + n;
+                    let v = BigInt::from(b);
+                    let (q, r) = algorithm_dr(&u, &v);
+                    assert_eq!(q, BigInt::from(a / b));
+                    assert_eq!(r, BigInt::from(a % b));
+                }
+            }
+        }
     }
 
     #[test]
@@ -1831,12 +1941,12 @@ mod signmag_tests {
         assert_eq!(w.mag.words[1], 0xfe);
     }
 
-    // #[test]
-    // fn div_works() {
-    //     let u = SignMag::from(0xffff_u16);
-    //     let v = SignMag::from(0xff00_u16);
-    //     let w = &u * &v;
-    //     let q = &w / &v;
-    //     assert_eq!(&u / &v, SignMag::from(0x0101_u16));
-    // }
+    #[test]
+    fn div_works() {
+        let u = SignMag::from(0xffff_u16);
+        let v = SignMag::from(0xff00_u16);
+        // let w = &u * &v;
+        // let q = &w / &v;
+        assert_eq!(&u / &v, SignMag::from(0x0001_u16));
+    }
 }
