@@ -366,7 +366,7 @@ pub fn algorithm_s_modular_varsize(u: &BigInt, v: &BigInt) -> (BigInt, u8) {
 pub fn algorithm_m(u: &BigInt, v: &BigInt) -> BigInt {
     let m = u.words.len();
     let n = v.words.len();
-    let mut w: Vec<u8> = Vec::with_capacity(m + n - 1);
+    let mut w: Vec<u8> = Vec::with_capacity(m + n);
     w.resize(m + n, 0);
     let mut j: usize = 0;
     while j < n {
@@ -386,86 +386,151 @@ pub fn algorithm_m(u: &BigInt, v: &BigInt) -> BigInt {
     BigInt { words: w }
 }
 
-pub fn algorithm_d(u: &BigInt, v: &BigInt) -> BigInt {
-    let n = v.words.len();
-    let m = u.words.len() - n;
-    let mut q: Vec<u8> = Vec::with_capacity(m + 1);
-    q.resize(m + 1, 0);
-    let b: u16 = 1 << 8;
-    let d = (b / (v.words[n - 1] as u16 + 1u16)) as u8;
-    let mut u = algorithm_m(&u, &BigInt { words: vec![d] });
-    if d == 1 {
-        u.words.push(0);
-    }
-    // d is such that v * d will not increase the number of places
-    let v = {
-        let mut v = v.clone();
-        let d = d as u16;
-        let mut k: u16 = 0;
-        let mut i: usize = 0;
-        while i < n {
-            let t = (v.words[i] as u16) * d + k;
-            k = t >> 8;
-            v.words[i] = (t & 0x00ff) as u8;
-            i += 1;
-        }
-        v
-    };
-    let v_n_1 = v.words[n - 1] as u16;
-    let v_n_2 = v.words[n - 2] as u16;
-    let mut j: usize = m + 1;
+pub fn algorithm_d_single_scalar(u: &BigInt, v: u8) -> (BigInt, BigInt) {
+    let n = u.words.len();
+    let v = v as u16;
+
+    let mut w: Vec<u8> = Vec::with_capacity(n);
+    w.resize(n, 0);
+    let mut j: usize = n;
+    let mut r: u16 = 0;
     while j > 0 {
         j -= 1;
-        let u_jn = u.words[j + n] as u16;
-        let u_jn_1 = u.words[j + n - 1] as u16;
-        let u_jn_2 = u.words[j + n - 2] as u16;
-        let mut q_hat = (u_jn * b + u_jn_1) / v_n_1;
-        let mut r_hat = (u_jn * b + u_jn_1) % v_n_1;
-        while q_hat >= b || q_hat * v_n_2 > b * r_hat + u_jn_2 {
-            q_hat -= 1;
-            r_hat += v_n_1;
-            if r_hat >= b {
-                break;
-            }
-        }
-        let u_t = &mut u.words[j..j + n + 1];
-        assert_eq!(u_t.len(), n + 1);
-        let mut i: usize = 0;
-        let mut k: u8 = 1;
-        let mut k_mul: u16 = 0;
-        while i < n + 1 {
-            let v_i = if i == n {
-                k_mul as u8
-            } else {
-                let t = (v.words[i] as u16) * q_hat + k_mul;
-                k_mul = t >> 8;
-                (t & 0x00ff) as u8
-            };
-            let u_i = u_t[i];
-            let w_i = u_i.wrapping_sub(v_i).wrapping_add(k).wrapping_add(u8::MAX);
-            k = (!(w_i > u_i)) as u8;
-            u_t[i] = w_i;
-            i += 1;
-        }
-        q[j] = q_hat as u8;
-        if k == 0 {
-            // There is an extra borrow
-            q[j] -= 1;
-            let mut i: usize = 0;
-            let mut k: u8 = 0;
-            while i < n + 1 {
-                let u_i = u_t[i];
-                let v_i = if i == n { 0 } else { v.words[i] };
-                let w_i = u_i.wrapping_add(v_i);
-                let k_prime = w_i < u_i.max(v_i);
-                let w_i_prime = w_i.wrapping_add(k);
-                k = (k_prime | (w_i_prime < w_i)) as u8;
-                u_t[i] = w_i_prime;
-                i += 1;
-            }
+        // let t = (r << 8) + u.words[j] as u16;
+        let t = (r << 8) | u.words[j] as u16;
+        if t >= v {
+            let q = t / v;
+            w[j] = q as u8;
+            r = t - v * q;
+        } else {
+            r = t;
+            w[j] = 0;
         }
     }
-    BigInt { words: q }
+    (BigInt { words: w }, BigInt::from(r as u8))
+}
+
+pub fn algorithm_d_single(u: &BigInt, v: &BigInt) -> (BigInt, BigInt) {
+    assert_eq!(v.words.len(), 1);
+    algorithm_d_single_scalar(u, v.words[0])
+}
+
+pub fn minimum_words<'a>(u: &'a BigInt) -> &[u8] {
+    let n = u.words.len();
+    let mut i: usize = n;
+    while i > 0 {
+        i -= 1;
+        if u.words[i] != 0 {
+            break;
+        }
+    }
+    &u.words[0..i + 1]
+}
+
+pub fn algorithm_dr(u: &BigInt, v: &BigInt) -> (BigInt, BigInt) {
+    let v = minimum_words(v);
+    let n = v.len();
+    if n == 1 {
+        algorithm_d_single_scalar(u, v[0])
+    } else {
+        let p = u.words.len();
+        let m = p - n;
+        let mut q: Vec<u8> = Vec::with_capacity(m + 1);
+        q.resize(m + 1, 0);
+        let b: u16 = 1 << 8;
+        let d = (b / (v[n - 1] as u16 + 1u16)) as u8;
+        let mut u = {
+            let mut w: Vec<u8> = Vec::with_capacity(p + 1);
+            w.resize(p + 1, 0);
+            let mut j: usize = 0;
+            let mut k: u16 = 0;
+            let d = d as u16;
+            while j < p {
+                let t = (u.words[j] as u16) * d + k;
+                k = t >> 8;
+                w[j] = t as u8;
+                j += 1;
+            }
+            w[p] = k as u8;
+            w
+        };
+        // d is such that v * d will not increase the number of places
+        let v = {
+            let mut v = v.to_vec();
+            let d = d as u16;
+            let mut k: u16 = 0;
+            let mut i: usize = 0;
+            while i < n {
+                let t = (v[i] as u16) * d + k;
+                k = t >> 8;
+                v[i] = t as u8;
+                i += 1;
+            }
+            v
+        };
+        let v_n_1 = v[n - 1] as u16;
+        let v_n_2 = v[n - 2] as u16;
+        let mut j: usize = m + 1;
+        while j > 0 {
+            j -= 1;
+            let u_jn = u[j + n] as u16;
+            let u_jn_1 = u[j + n - 1] as u16;
+            let u_jn_2 = u[j + n - 2] as u16;
+            let mut q_hat = (u_jn * b + u_jn_1) / v_n_1;
+            let mut r_hat = (u_jn * b + u_jn_1) % v_n_1;
+            while q_hat >= b || q_hat * v_n_2 > b * r_hat + u_jn_2 {
+                q_hat -= 1;
+                r_hat += v_n_1;
+                if r_hat >= b {
+                    break;
+                }
+            }
+            let u_t = &mut u[j..j + n + 1];
+            assert_eq!(u_t.len(), n + 1);
+            let mut i: usize = 0;
+            let mut k: u8 = 1;
+            let mut k_mul: u16 = 0;
+            while i < n + 1 {
+                let v_i = if i == n {
+                    k_mul as u8
+                } else {
+                    let t = (v[i] as u16) * q_hat + k_mul;
+                    k_mul = t >> 8;
+                    (t & 0x00ff) as u8
+                };
+                let u_i = u_t[i];
+                let w_i = u_i.wrapping_sub(v_i).wrapping_add(k).wrapping_add(u8::MAX);
+                k = (!(w_i > u_i)) as u8;
+                u_t[i] = w_i;
+                i += 1;
+            }
+            q[j] = q_hat as u8;
+            if k == 0 {
+                // There is an extra borrow
+                q[j] -= 1;
+                let mut i: usize = 0;
+                let mut k: u8 = 0;
+                while i < n + 1 {
+                    let u_i = u_t[i];
+                    let v_i = if i == n { 0 } else { v[i] };
+                    let w_i = u_i.wrapping_add(v_i);
+                    let k_prime = w_i < u_i.max(v_i);
+                    let w_i_prime = w_i.wrapping_add(k);
+                    k = (k_prime | (w_i_prime < w_i)) as u8;
+                    u_t[i] = w_i_prime;
+                    i += 1;
+                }
+            }
+        }
+        u.truncate(n);
+        let (r, _) = algorithm_d_single_scalar(&BigInt { words: u }, d);
+        (BigInt { words: q }, r)
+    }
+}
+pub fn algorithm_d(u: &BigInt, v: &BigInt) -> BigInt {
+    // This should elide the remainder computation, or so one would hope.
+    let (q, _) = algorithm_dr(u, v);
+    q
 }
 
 use std::cmp::Ordering;
