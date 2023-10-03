@@ -1332,6 +1332,12 @@ mod tests {
         assert_eq!(w.words[1], 0xff);
         assert_eq!(w.words[2], 0xff);
         assert_eq!(k, 0);
+
+        let u = BigInt::from_rtol(&[0x03]);
+        let v = BigInt::from_rtol(&[0x00, 0x07]);
+        let (w, k) = algorithm_s_modular_varsize(&u, &v);
+        assert_eq!(w, BigInt::from_rtol(&[0xff, 0xfc]));
+        assert_eq!(k, 0);
     }
 
     #[test]
@@ -1757,6 +1763,60 @@ mod signmag_tests {
         assert_eq!(w.mag.words[0], 0x00);
         assert_eq!(w.mag.words[1], 0x02);
         assert_eq!(w.sign, true);
+
+        let u = SignMag::from(0x03_u8);
+        let v = SignMag::from(0x0007_u16);
+        let w = &u - &v;
+        let rhs = SignMag::from(-4_i8);
+        assert_eq!(w, rhs);
+
+        let u = SignMag::from(0x03_u8);
+        let v = SignMag::from(0x0003_u16);
+        let w = &u - &v;
+        let rhs = SignMag::from(0u8);
+        assert_eq!(w, rhs);
+
+        let u = SignMag::from(0x03_u8);
+        let v = SignMag::from(0x0002_u16);
+        let w = &u - &v;
+        let rhs = SignMag::from(1u8);
+        assert_eq!(w, rhs);
+
+        let u = SignMag::from(0x03_u8);
+        let v = SignMag::from(0x0001_u16);
+        let w = &u - &v;
+        let rhs = SignMag::from(2u8);
+        assert_eq!(w, rhs);
+
+        let u = SignMag::from(0x03_u8);
+        let v = SignMag::from(0x0004_u16);
+        let w = &u - &v;
+        let rhs = SignMag::from(-1_i8);
+        assert_eq!(w, rhs);
+
+        let u = SignMag::from(0x01_u8);
+        let v = SignMag::from(0x0001_u16);
+        let w = &u - &v;
+        let rhs = SignMag::from(0_u8);
+        assert_eq!(w, rhs);
+
+        let u = SignMag::from(0x0001_u16);
+        let v = SignMag::from(0x01_u8);
+        let w = &u - &v;
+        let rhs = SignMag::from(0_u8);
+        assert_eq!(w, rhs);
+
+        let u = SignMag::from(0x0101_u16);
+        let v = SignMag::from(0x03_u8);
+        let w = &u - &v;
+        let rhs = SignMag::from(254_u8);
+        assert_eq!(w, rhs);
+
+        let u = SignMag::from(0x8001_u16);
+        let v = SignMag::from(0x03_u8);
+        let w = &u - &v;
+        let rhs = SignMag::from(32766_u16);
+        assert_eq!(w, rhs);
     }
 
     #[test]
