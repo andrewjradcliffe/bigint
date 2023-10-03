@@ -1512,10 +1512,75 @@ impl Div for &SignMag {
         SignMag { sign, mag }
     }
 }
+use std::ops::Neg;
+impl Neg for &SignMag {
+    type Output = SignMag;
+    fn neg(self) -> SignMag {
+        let mag = self.mag.clone();
+        if mag.is_zero() {
+            SignMag { sign: false, mag }
+        } else {
+            SignMag {
+                sign: !(self.sign),
+                mag,
+            }
+        }
+    }
+}
+use std::cmp::Eq;
+use std::cmp::Ord;
+
+impl Ord for SignMag {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if !self.sign & !other.sign {
+            algorithm_cmp(&self.mag, &other.mag)
+            // self.mag.cmp(&other.mag)
+        } else if !self.sign & other.sign {
+            Ordering::Greater
+        } else if self.sign & !other.sign {
+            Ordering::Less
+        } else {
+            match algorithm_cmp(&self.mag, &other.mag) {
+                Ordering::Less => Ordering::Greater,
+                Ordering::Greater => Ordering::Less,
+                Ordering::Equal => Ordering::Equal,
+            }
+        }
+    }
+}
+impl PartialOrd for SignMag {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for SignMag {
+    fn eq(&self, other: &Self) -> bool {
+        if self.sign ^ other.sign {
+            false
+        } else {
+            algorithm_eq(&self.mag, &other.mag)
+        }
+    }
+}
+impl Eq for SignMag {}
 
 #[cfg(test)]
 mod signmag_tests {
     use super::*;
+
+    #[test]
+    fn neg_works() {
+        let u = SignMag::from(0xff_u8);
+        let v = -&u;
+        assert_eq!(
+            v,
+            SignMag {
+                sign: true,
+                mag: BigInt::from(0xff_u8)
+            }
+        );
+    }
 
     #[test]
     fn add_works() {
@@ -1524,6 +1589,16 @@ mod signmag_tests {
         let w = &u + &v;
         assert_eq!(w.mag.words[0], 0x00);
         assert_eq!(w.mag.words[1], 0x02);
+
+        let a = 0xf1_u8;
+        let b = 0x0f_u8;
+        let u = SignMag::from(a);
+        let v = SignMag::from(b);
+        assert_eq!(&u + &v, SignMag::from((a as u16) + (b as u16)));
+
+        let u = SignMag::from(0x01_u8);
+        let v = SignMag::from(0x02_u8);
+        assert_eq!(u, &v + &(-&u));
     }
 
     #[test]
