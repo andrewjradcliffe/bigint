@@ -1527,6 +1527,23 @@ impl Neg for &SignMag {
         }
     }
 }
+impl Neg for SignMag {
+    type Output = Self;
+    fn neg(self) -> Self {
+        if self.mag.is_zero() {
+            SignMag {
+                sign: false,
+                mag: self.mag,
+            }
+        } else {
+            SignMag {
+                sign: !(self.sign),
+                mag: self.mag,
+            }
+        }
+    }
+}
+
 use std::cmp::Eq;
 use std::cmp::Ord;
 
@@ -1573,13 +1590,15 @@ mod signmag_tests {
     fn neg_works() {
         let u = SignMag::from(0xff_u8);
         let v = -&u;
-        assert_eq!(
-            v,
-            SignMag {
-                sign: true,
-                mag: BigInt::from(0xff_u8)
-            }
-        );
+
+        let rhs = SignMag {
+            sign: true,
+            mag: BigInt::from(0xff_u8),
+        };
+        assert_eq!(v, rhs);
+
+        let v = -u;
+        assert_eq!(v, rhs);
     }
 
     #[test]
