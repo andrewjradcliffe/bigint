@@ -703,6 +703,15 @@ mod tests {
         let lhs = BigInt::from_rtol(&[0x0f, 0xf0, 0x01, 0x01, 0x01]);
         let rhs = algorithm_a(&lhs, &v);
         assert!(algorithm_eq(&w, &rhs));
+
+        for a in 0x00_u8..0xff_u8 {
+            for b in 0x00_u8..0xff_u8 {
+                let u = BigInt::from(a);
+                let v = BigInt::from(b);
+                let ab = (a as u16) + (b as u16);
+                assert_eq!(algorithm_a_sz(&u, &v), BigInt::from(ab));
+            }
+        }
     }
 
     #[test]
@@ -753,6 +762,15 @@ mod tests {
         assert_eq!(w.words[1], 0x00);
         assert_eq!(w.words[2], 0x00);
         assert_eq!(w.words[3], 0x01);
+
+        for a in 0x00_u8..0xff_u8 {
+            for b in 0x00_u8..0xff_u8 {
+                let u = BigInt::from(a);
+                let v = BigInt::from(b as u16);
+                let ab = BigInt::from((a as u16) + (b as u16));
+                assert_eq!(algorithm_s(&ab, &v), u);
+            }
+        }
     }
 
     #[test]
@@ -768,6 +786,22 @@ mod tests {
         let w = algorithm_m(&u, &v);
         assert_eq!(w.words[0], 0xe1);
         assert_eq!(w.words[1], 0x00);
+
+        let u = BigInt::from(u64::MAX);
+        let v = BigInt::from(u64::MAX);
+        assert_eq!(
+            algorithm_m(&u, &v),
+            BigInt::from((u64::MAX as u128) * (u64::MAX as u128))
+        );
+
+        for a in 0x00_u8..0xff_u8 {
+            for b in 0x00_u8..0xff_u8 {
+                let u = BigInt::from(a);
+                let v = BigInt::from(b);
+                let ab = (a as u16) * (b as u16);
+                assert_eq!(algorithm_m(&u, &v), BigInt::from(ab));
+            }
+        }
     }
 
     #[test]
